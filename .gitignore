@@ -1,5 +1,8 @@
 cache/
+data/
+target/
 .DS_Store
 commit.txt
 .claude/CLAUDE.md
 .handoffs/
+.mcp.json

@@ -47,6 +47,16 @@ bench-gungraun:
 bench-cli:
   ./scripts/bench-cli.sh
 
+# Collect TailwindPlus data (v4 only by default)
+# Examples:
+#   just collect              # v4 only → cache/YYYY-MM-DD/
+#   just collect foo          # with suffix → cache/YYYY-MM-DD-foo/
+#   just collect --with-v3    # include v3 formats
+#   just collect --resume     # resume after failure
+#   just collect --with-v3 --resume foo
+collect *ARGS:
+  ./scripts/tailwindplus-collector.sh {{ARGS}}
+
 zip:
   git archive --format=zip --output=../draftkit-{{datetime('-%Y-%m-%d_%H%M')}}.zip HEAD
 

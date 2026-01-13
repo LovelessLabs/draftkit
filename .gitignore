@@ -1,0 +1,5 @@
+cache/
+.DS_Store
+commit.txt
+.claude/CLAUDE.md
+.handoffs/

@@ -57,6 +57,17 @@ bench-cli:
 collect *ARGS:
   ./scripts/tailwindplus-collector.sh {{ARGS}}
 
+# Clean TailwindPlus cached data
+clean-cache:
+  rm -Rf cache/*
+
+# Generate embeddings from collected NDJSON data
+# Examples:
+#   just gen-embeddings cache/2026-01-12/data/components
+#   just gen-embeddings cache/latest/data/components -o custom.db
+gen-embeddings INPUT_DIR *ARGS:
+  cargo xtask gen-embeddings --input-dir {{INPUT_DIR}} {{ARGS}}
+
 zip:
   git archive --format=zip --output=../draftkit-{{datetime('-%Y-%m-%d_%H%M')}}.zip HEAD
 

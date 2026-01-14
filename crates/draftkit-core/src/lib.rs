@@ -8,6 +8,7 @@ pub mod config;
 pub mod docs;
 pub mod elements;
 pub mod error;
+pub mod manifest;
 
 pub use catalog::Catalog;
 pub use catalyst::{
@@ -23,3 +24,4 @@ pub use config::{Config, ConfigLoader, LogLevel};
 pub use docs::{TopicInfo, get_docs, list_all_topics, list_topics, search_topics};
 pub use elements::{ElementInfo, get_element_docs, get_full_docs, get_overview, list_elements};
 pub use error::{ConfigError, ConfigResult};
+pub use manifest::{BuildInfo, Manifest, ManifestCounts, ManifestVersions, TemplateInfo, get_manifest};

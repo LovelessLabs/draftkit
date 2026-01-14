@@ -239,7 +239,7 @@ if ! skip_if_done "0-docs"; then
   for f in "$TAILWIND_DOCS_SRC/tailwind-v3"/*.md; do
     if [[ -f "$f" && "$(basename "$f")" != "README.md" ]]; then
       cp "$f" "$TAILWIND_DOCS_DST/v3/"
-      ((v3_count++))
+      v3_count=$((v3_count + 1))
     fi
   done
 
@@ -248,7 +248,7 @@ if ! skip_if_done "0-docs"; then
   for f in "$TAILWIND_DOCS_SRC/tailwind-v4"/*.md; do
     if [[ -f "$f" && "$(basename "$f")" != "README.md" ]]; then
       cp "$f" "$TAILWIND_DOCS_DST/v4/"
-      ((v4_count++))
+      v4_count=$((v4_count + 1))
     fi
   done
 
@@ -905,10 +905,23 @@ tw_v3_count=$(find "$DOCS_DIR/tailwind/v3" -name "*.md" 2>/dev/null | wc -l | tr
 tw_v4_count=$(find "$DOCS_DIR/tailwind/v4" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
 echo "  - Tailwind docs: v3 ($tw_v3_count), v4 ($tw_v4_count)"
 echo ""
+
+# Step 12: Extract component metadata
+echo ""
+echo "--- Step 12: Extracting component metadata ---"
+METADATA_SCRIPT="$SCRIPT_DIR/metadata.sh"
+if [[ -x "$METADATA_SCRIPT" ]]; then
+  "$METADATA_SCRIPT" "$OUT_DIR/data/components"
+  echo "${OK} Metadata extraction complete"
+else
+  echo "⚠ Skipping metadata extraction (scripts/metadata.sh not found)"
+fi
+
+echo ""
 echo "Next step: generate embeddings"
 echo "  cargo run --release -p xtask -- gen-embeddings"
 
-# Step 12: Update cache/current symlink
+# Step 13: Update cache/current symlink
 echo ""
 echo "--- Updating cache/current symlink ---"
 CURRENT_LINK="$CACHE_DIR/current"

@@ -85,7 +85,8 @@ pub fn list_components() -> Vec<String> {
 
 /// List all available Catalyst component names (stub when no embedded data)
 #[cfg(not(feature = "embedded-data"))]
-pub fn list_components() -> Vec<String> {
+#[must_use]
+pub const fn list_components() -> Vec<String> {
     Vec::new()
 }
 
@@ -127,7 +128,8 @@ pub fn get_component(name: &str, language: CatalystLanguage) -> Option<&'static 
 
 /// Get the source code for a Catalyst component (stub when no embedded data)
 #[cfg(not(feature = "embedded-data"))]
-pub fn get_component(_name: &str, _language: CatalystLanguage) -> Option<&'static str> {
+#[must_use]
+pub const fn get_component(_name: &str, _language: CatalystLanguage) -> Option<&'static str> {
     None
 }
 
@@ -150,7 +152,8 @@ pub fn get_all_components(language: CatalystLanguage) -> Vec<(&'static str, &'st
 
 /// Get all components as (name, code) pairs for a given language (stub when no embedded data)
 #[cfg(not(feature = "embedded-data"))]
-pub fn get_all_components(_language: CatalystLanguage) -> Vec<(&'static str, &'static str)> {
+#[must_use]
+pub const fn get_all_components(_language: CatalystLanguage) -> Vec<(&'static str, &'static str)> {
     Vec::new()
 }
 

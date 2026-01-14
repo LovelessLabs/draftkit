@@ -199,7 +199,7 @@ pub fn get_docs(topic: &str, version: TailwindVersion) -> Option<&'static str> {
 /// Get documentation content for a topic (stub when no embedded data)
 #[cfg(not(feature = "embedded-data"))]
 #[must_use]
-pub fn get_docs(_topic: &str, _version: TailwindVersion) -> Option<&'static str> {
+pub const fn get_docs(_topic: &str, _version: TailwindVersion) -> Option<&'static str> {
     None
 }
 

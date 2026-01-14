@@ -67,15 +67,22 @@ pub fn cmd_gen_benchmarks() -> Result<(), String> {
 
     println!("Generated benchmark harnesses:");
     println!("  → {}", benches_dir.join("divan_benchmarks.rs").display());
-    println!("  → {}", benches_dir.join("gungraun_benchmarks.rs").display());
+    println!(
+        "  → {}",
+        benches_dir.join("gungraun_benchmarks.rs").display()
+    );
 
     Ok(())
 }
 
 fn find_benches_dir(root: &Path) -> Result<(PathBuf, String), String> {
     let crates_dir = root.join("crates");
-    let entries = fs::read_dir(&crates_dir)
-        .map_err(|e| format!("Failed to read crates directory {}: {e}", crates_dir.display()))?;
+    let entries = fs::read_dir(&crates_dir).map_err(|e| {
+        format!(
+            "Failed to read crates directory {}: {e}",
+            crates_dir.display()
+        )
+    })?;
 
     for entry in entries {
         let entry = entry.map_err(|e| format!("Failed to read crates entry: {e}"))?;
@@ -133,12 +140,12 @@ fn build_generation_input(doc: &KdlDocument) -> Result<GenerationInput, String> 
             continue;
         }
 
-        let name = property_string(node, "name")
-            .ok_or_else(|| "benchmark missing name".to_string())?;
+        let name =
+            property_string(node, "name").ok_or_else(|| "benchmark missing name".to_string())?;
         let module = property_string(node, "module").unwrap_or_else(|| "benchmarks".to_string());
         let return_type = property_string(node, "return").unwrap_or_else(|| "()".to_string());
-        let body = child_code(node, "body")
-            .ok_or_else(|| format!("benchmark {name} missing body"))?;
+        let body =
+            child_code(node, "body").ok_or_else(|| format!("benchmark {name} missing body"))?;
 
         benchmarks.push(BenchmarkDef {
             name,
@@ -180,7 +187,6 @@ fn child_code(node: &KdlNode, child_name: &str) -> Option<String> {
         .and_then(|entry| entry.value().as_string())
         .map(|value| value.to_string())
 }
-
 
 fn render_divan(input: &GenerationInput, core_name: &str) -> Result<String, String> {
     let mut output = String::new();
@@ -293,10 +299,12 @@ mod tests {
     #[test]
     fn renders_divan_and_gungraun() {
         let kdl = r#"
-            preamble { code "use crate::example::Thing;" }
-            benchmark name=\"sample\" module=\"config\" return=\"u64\" {
-                body "black_box(42)"
-            }
+preamble {
+    code "use crate::example::Thing;"
+}
+benchmark name="sample" module="config" return="u64" {
+    body "black_box(42)"
+}
         "#;
 
         let doc: KdlDocument = kdl.parse().expect("parse kdl");

@@ -1,0 +1,72 @@
+[package]
+name = "draftkit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+exclude = [
+    # Workspace-level files (/ = workspace root)
+    "/.claude/",
+    "/.github/",
+    "/AGENTS.md",
+    "/.justfile",
+    "/.editorconfig",
+    "/.markdownlint.yaml",
+    "/.yamllint",
+    "/.envrc",
+    "/.env",
+    "/.env.rust",
+    "/bench-reports/",
+    "/scripts/",
+    "/docs/",
+    "/cog.toml",
+    "/deny.toml",
+    "/cargo-generate.toml",
+    # Example config files
+    "/*.example",
+]
+
+[[bin]]
+name = "draftkit"
+path = "src/main.rs"
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }.{ archive-format }"
+bin-dir = "{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-v{ version }-{ target }.zip"
+pkg-fmt = "zip"
+bin-dir = "{ bin }{ binary-ext }"
+
+[dependencies]
+draftkit-core = { version = "0.1", path = "../draftkit-core", features = ["schema"] }
+clap = { version = "4.5", features = ["derive"] }
+anyhow = "1.0"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.20", features = ["env-filter", "time"] }
+tracing-appender = "0.2"
+opentelemetry = { version = "0.31", features = ["trace"] }
+opentelemetry_sdk = { version = "0.31", features = ["trace", "rt-tokio"] }
+opentelemetry-otlp = { version = "0.31", features = ["grpc-tonic"] }
+tracing-opentelemetry = "0.32"
+tokio = { version = "1.44", features = ["rt-multi-thread", "macros", "io-std", "net", "signal"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+dirs = "6.0"
+rmcp = { version = "0.12.0", features = ["server", "transport-io", "macros"] }
+thiserror = "2.0.17"
+schemars = "1.2.0"
+
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.1"
+
+[lints]
+workspace = true

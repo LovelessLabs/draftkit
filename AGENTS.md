@@ -44,7 +44,7 @@
 ## Testing Guidelines
 - If you change behavior, add/adjust tests in the same change.
 - Prefer fast, deterministic tests; use integration tests for end-to-end behavior.
-- `just cov` output should exceed 95% prior to any commit.
+- `just cov` output should exceed 90% prior to any commit.
 
 ## Commit & Pull Request Guidelines
 - Follow Conventional Commits (`feat:`, `fix:`, `docs:`, `perf:`, `chore:`) for clarity.

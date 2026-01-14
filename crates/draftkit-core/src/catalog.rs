@@ -90,6 +90,7 @@ impl Catalog {
 
     /// List all Catalyst component names.
     #[must_use]
+    #[allow(clippy::missing_const_for_fn)] // Not const when embedded-data is enabled
     pub fn list_catalyst_names(&self) -> Vec<String> {
         catalyst::list_components()
     }
@@ -102,6 +103,7 @@ impl Catalog {
 
     /// Get source code for a Catalyst component.
     #[must_use]
+    #[allow(clippy::missing_const_for_fn)] // Not const when embedded-data is enabled
     pub fn get_catalyst_component(
         &self,
         name: &str,
@@ -112,6 +114,7 @@ impl Catalog {
 
     /// Get all Catalyst components for a language.
     #[must_use]
+    #[allow(clippy::missing_const_for_fn)] // Not const when embedded-data is enabled
     pub fn get_all_catalyst_components(
         &self,
         language: CatalystLanguage,
@@ -125,6 +128,7 @@ impl Catalog {
 
     /// Get documentation content for a topic.
     #[must_use]
+    #[allow(clippy::missing_const_for_fn)] // Not const when embedded-data is enabled
     pub fn get_tailwind_docs(&self, topic: &str, version: TailwindVersion) -> Option<&'static str> {
         docs::get_docs(topic, version)
     }

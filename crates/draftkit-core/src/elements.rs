@@ -2,11 +2,19 @@
 //!
 //! Elements is a JavaScript UI component library with 9 interactive Web Components.
 //! Documentation is embedded at compile time from cache/docs/elements-llms.txt.
+//!
+//! When the `embedded-data` feature is disabled, this module provides stub implementations
+//! that return empty results. This allows CI to build without the cache directory present.
 
 use std::collections::HashMap;
 
 /// Embedded Elements documentation
+#[cfg(feature = "embedded-data")]
 static ELEMENTS_DOC: &str = include_str!("../cache/docs/elements-llms.txt");
+
+/// Stub documentation when no embedded data
+#[cfg(not(feature = "embedded-data"))]
+static ELEMENTS_DOC: &str = "";
 
 /// Element component names (lowercase for matching)
 const ELEMENT_NAMES: &[&str] = &[
@@ -165,28 +173,35 @@ pub fn get_full_docs() -> &'static str {
 mod tests {
     use super::*;
 
+    // Tests that require embedded data
+    #[cfg(feature = "embedded-data")]
+    mod embedded_tests {
+        use super::*;
+
+        #[test]
+        fn test_get_overview() {
+            let overview = get_overview();
+            assert!(overview.contains("Tailwind Plus Elements"));
+            assert!(overview.contains("Installing"));
+        }
+
+        #[test]
+        fn test_get_element_docs() {
+            // Test various name formats
+            assert!(get_element_docs("dialog").is_some());
+            assert!(get_element_docs("Dialog").is_some());
+            assert!(get_element_docs("el-dialog").is_some());
+            assert!(get_element_docs("<el-dialog>").is_some());
+        }
+    }
+
+    // Tests that work without embedded data
     #[test]
     fn test_list_elements() {
         let elements = list_elements();
         assert_eq!(elements.len(), 9);
         assert!(elements.iter().any(|e| e.name == "Dialog"));
         assert!(elements.iter().any(|e| e.name == "Tabs"));
-    }
-
-    #[test]
-    fn test_get_overview() {
-        let overview = get_overview();
-        assert!(overview.contains("Tailwind Plus Elements"));
-        assert!(overview.contains("Installing"));
-    }
-
-    #[test]
-    fn test_get_element_docs() {
-        // Test various name formats
-        assert!(get_element_docs("dialog").is_some());
-        assert!(get_element_docs("Dialog").is_some());
-        assert!(get_element_docs("el-dialog").is_some());
-        assert!(get_element_docs("<el-dialog>").is_some());
     }
 
     #[test]

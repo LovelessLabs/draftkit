@@ -2,15 +2,21 @@
 //!
 //! Provides embedded documentation for Tailwind CSS v3 and v4.
 //! Documentation is embedded at compile time from cache/docs/tailwind/.
+//!
+//! When the `embedded-data` feature is disabled, this module provides stub implementations
+//! that return empty results. This allows CI to build without the cache directory present.
 
+#[cfg(feature = "embedded-data")]
 use include_dir::{Dir, include_dir};
 
 use crate::components::TailwindVersion;
 
 /// Embedded Tailwind CSS v3 documentation
+#[cfg(feature = "embedded-data")]
 static V3_DOCS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/cache/docs/tailwind/v3");
 
 /// Embedded Tailwind CSS v4 documentation
+#[cfg(feature = "embedded-data")]
 static V4_DOCS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/cache/docs/tailwind/v4");
 
 /// Topic metadata with version availability
@@ -178,6 +184,7 @@ pub static TOPICS: &[TopicInfo] = &[
 ///
 /// # Returns
 /// The markdown content if found, None otherwise
+#[cfg(feature = "embedded-data")]
 #[must_use]
 pub fn get_docs(topic: &str, version: TailwindVersion) -> Option<&'static str> {
     let dir = match version {
@@ -187,6 +194,13 @@ pub fn get_docs(topic: &str, version: TailwindVersion) -> Option<&'static str> {
 
     let filename = format!("{topic}.md");
     dir.get_file(&filename).and_then(|f| f.contents_utf8())
+}
+
+/// Get documentation content for a topic (stub when no embedded data)
+#[cfg(not(feature = "embedded-data"))]
+#[must_use]
+pub fn get_docs(_topic: &str, _version: TailwindVersion) -> Option<&'static str> {
+    None
 }
 
 /// List all available documentation topics for a given version
@@ -232,6 +246,31 @@ pub fn search_topics(query: &str, version: TailwindVersion) -> Vec<(&'static str
 mod tests {
     use super::*;
 
+    // Tests that require embedded data
+    #[cfg(feature = "embedded-data")]
+    mod embedded_tests {
+        use super::*;
+
+        #[test]
+        fn test_get_docs_v4() {
+            let content = get_docs("flexbox", TailwindVersion::V4);
+            assert!(content.is_some());
+            let text = content.unwrap();
+            assert!(text.contains("Flexbox"));
+            // v4-specific: should mention CSS variables or safe alignment
+            assert!(text.contains("v4") || text.contains("safe") || text.contains("var(--"));
+        }
+
+        #[test]
+        fn test_get_docs_v3() {
+            let content = get_docs("flexbox", TailwindVersion::V3);
+            assert!(content.is_some());
+            let text = content.unwrap();
+            assert!(text.contains("Flexbox") || text.contains("flex"));
+        }
+    }
+
+    // Tests that work without embedded data
     #[test]
     fn test_list_topics_v4() {
         let topics = list_topics(TailwindVersion::V4);
@@ -262,24 +301,6 @@ mod tests {
         let results = search_topics("flex", TailwindVersion::V4);
         assert!(!results.is_empty());
         assert!(results.iter().any(|(name, _)| *name == "flexbox"));
-    }
-
-    #[test]
-    fn test_get_docs_v4() {
-        let content = get_docs("flexbox", TailwindVersion::V4);
-        assert!(content.is_some());
-        let text = content.unwrap();
-        assert!(text.contains("Flexbox"));
-        // v4-specific: should mention CSS variables or safe alignment
-        assert!(text.contains("v4") || text.contains("safe") || text.contains("var(--"));
-    }
-
-    #[test]
-    fn test_get_docs_v3() {
-        let content = get_docs("flexbox", TailwindVersion::V3);
-        assert!(content.is_some());
-        let text = content.unwrap();
-        assert!(text.contains("Flexbox") || text.contains("flex"));
     }
 
     #[test]

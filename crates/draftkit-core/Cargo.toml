@@ -58,6 +58,7 @@ name = "gungraun_benchmarks"
 harness = false
 
 [features]
-default = []
+default = ["embedded-data"]
+embedded-data = []
 schema = ["dep:schemars"]
 

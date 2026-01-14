@@ -2,13 +2,19 @@
 //!
 //! Catalyst is a collection of atomic React components designed to work with Tailwind CSS.
 //! Components are available in both TypeScript (.tsx) and JavaScript (.jsx) formats.
+//!
+//! When the `embedded-data` feature is disabled, this module provides stub implementations
+//! that return empty results. This allows CI to build without the cache directory present.
 
+#[cfg(feature = "embedded-data")]
 use include_dir::{Dir, include_dir};
 
 /// Embedded TypeScript Catalyst components
+#[cfg(feature = "embedded-data")]
 static TYPESCRIPT_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/cache/kits/catalyst/typescript");
 
 /// Embedded JavaScript Catalyst components
+#[cfg(feature = "embedded-data")]
 static JAVASCRIPT_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/cache/kits/catalyst/javascript");
 
 /// Language variant for Catalyst components
@@ -64,6 +70,7 @@ pub struct CatalystComponent {
 }
 
 /// List all available Catalyst component names
+#[cfg(feature = "embedded-data")]
 pub fn list_components() -> Vec<String> {
     TYPESCRIPT_DIR
         .files()
@@ -74,6 +81,12 @@ pub fn list_components() -> Vec<String> {
                 .map(String::from)
         })
         .collect()
+}
+
+/// List all available Catalyst component names (stub when no embedded data)
+#[cfg(not(feature = "embedded-data"))]
+pub fn list_components() -> Vec<String> {
+    Vec::new()
 }
 
 /// Get component metadata for all Catalyst components
@@ -99,6 +112,7 @@ pub fn get_component_metadata() -> Vec<CatalystComponent> {
 }
 
 /// Get the source code for a Catalyst component
+#[cfg(feature = "embedded-data")]
 pub fn get_component(name: &str, language: CatalystLanguage) -> Option<&'static str> {
     let dir = match language {
         CatalystLanguage::TypeScript => &TYPESCRIPT_DIR,
@@ -111,7 +125,14 @@ pub fn get_component(name: &str, language: CatalystLanguage) -> Option<&'static 
     dir.get_file(&filename).and_then(|f| f.contents_utf8())
 }
 
+/// Get the source code for a Catalyst component (stub when no embedded data)
+#[cfg(not(feature = "embedded-data"))]
+pub fn get_component(_name: &str, _language: CatalystLanguage) -> Option<&'static str> {
+    None
+}
+
 /// Get all components as (name, code) pairs for a given language
+#[cfg(feature = "embedded-data")]
 pub fn get_all_components(language: CatalystLanguage) -> Vec<(&'static str, &'static str)> {
     let dir = match language {
         CatalystLanguage::TypeScript => &TYPESCRIPT_DIR,
@@ -125,6 +146,12 @@ pub fn get_all_components(language: CatalystLanguage) -> Vec<(&'static str, &'st
             Some((name, content))
         })
         .collect()
+}
+
+/// Get all components as (name, code) pairs for a given language (stub when no embedded data)
+#[cfg(not(feature = "embedded-data"))]
+pub fn get_all_components(_language: CatalystLanguage) -> Vec<(&'static str, &'static str)> {
+    Vec::new()
 }
 
 /// Component descriptions for Catalyst UI Kit
@@ -211,28 +238,76 @@ fn component_descriptions() -> std::collections::HashMap<&'static str, &'static 
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_list_components() {
-        let components = list_components();
-        assert!(!components.is_empty());
-        assert!(components.contains(&"button".to_string()));
-        assert!(components.contains(&"dialog".to_string()));
+    // Tests that require embedded data
+    #[cfg(feature = "embedded-data")]
+    mod embedded_tests {
+        use super::*;
+
+        #[test]
+        fn test_list_components() {
+            let components = list_components();
+            assert!(!components.is_empty());
+            assert!(components.contains(&"button".to_string()));
+            assert!(components.contains(&"dialog".to_string()));
+        }
+
+        #[test]
+        fn test_get_component_typescript() {
+            let button = get_component("button", CatalystLanguage::TypeScript);
+            assert!(button.is_some());
+            assert!(button.unwrap().contains("Button"));
+        }
+
+        #[test]
+        fn test_get_component_javascript() {
+            let button = get_component("button", CatalystLanguage::JavaScript);
+            assert!(button.is_some());
+            assert!(button.unwrap().contains("Button"));
+        }
+
+        #[test]
+        fn test_get_component_metadata() {
+            let metadata = get_component_metadata();
+            assert!(!metadata.is_empty());
+
+            // Find button component
+            let button = metadata.iter().find(|c| c.name == "button");
+            assert!(button.is_some());
+            let button = button.unwrap();
+            assert!(!button.description.is_empty());
+            assert_eq!(button.extension, "tsx");
+        }
+
+        #[test]
+        fn test_get_all_components_typescript() {
+            let components = get_all_components(CatalystLanguage::TypeScript);
+            assert!(!components.is_empty());
+
+            // Should have button
+            let button = components.iter().find(|(name, _)| *name == "button");
+            assert!(button.is_some());
+            assert!(button.unwrap().1.contains("Button"));
+        }
+
+        #[test]
+        fn test_get_all_components_javascript() {
+            let components = get_all_components(CatalystLanguage::JavaScript);
+            assert!(!components.is_empty());
+
+            // Should have button
+            let button = components.iter().find(|(name, _)| *name == "button");
+            assert!(button.is_some());
+        }
+
+        #[test]
+        fn test_component_descriptions_coverage() {
+            // Ensure descriptions map has reasonable size
+            let descriptions = component_descriptions();
+            assert!(descriptions.len() >= 20); // We defined ~27 descriptions
+        }
     }
 
-    #[test]
-    fn test_get_component_typescript() {
-        let button = get_component("button", CatalystLanguage::TypeScript);
-        assert!(button.is_some());
-        assert!(button.unwrap().contains("Button"));
-    }
-
-    #[test]
-    fn test_get_component_javascript() {
-        let button = get_component("button", CatalystLanguage::JavaScript);
-        assert!(button.is_some());
-        assert!(button.unwrap().contains("Button"));
-    }
-
+    // Tests that work without embedded data
     #[test]
     fn test_nonexistent_component() {
         let result = get_component("nonexistent", CatalystLanguage::TypeScript);
@@ -288,46 +363,5 @@ mod tests {
             CatalystLanguage::parse("jsx"),
             Some(CatalystLanguage::JavaScript)
         );
-    }
-
-    #[test]
-    fn test_get_component_metadata() {
-        let metadata = get_component_metadata();
-        assert!(!metadata.is_empty());
-
-        // Find button component
-        let button = metadata.iter().find(|c| c.name == "button");
-        assert!(button.is_some());
-        let button = button.unwrap();
-        assert!(!button.description.is_empty());
-        assert_eq!(button.extension, "tsx");
-    }
-
-    #[test]
-    fn test_get_all_components_typescript() {
-        let components = get_all_components(CatalystLanguage::TypeScript);
-        assert!(!components.is_empty());
-
-        // Should have button
-        let button = components.iter().find(|(name, _)| *name == "button");
-        assert!(button.is_some());
-        assert!(button.unwrap().1.contains("Button"));
-    }
-
-    #[test]
-    fn test_get_all_components_javascript() {
-        let components = get_all_components(CatalystLanguage::JavaScript);
-        assert!(!components.is_empty());
-
-        // Should have button
-        let button = components.iter().find(|(name, _)| *name == "button");
-        assert!(button.is_some());
-    }
-
-    #[test]
-    fn test_component_descriptions_coverage() {
-        // Ensure descriptions map has reasonable size
-        let descriptions = component_descriptions();
-        assert!(descriptions.len() >= 20); // We defined ~27 descriptions
     }
 }

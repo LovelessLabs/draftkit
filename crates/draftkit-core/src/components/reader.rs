@@ -2,7 +2,11 @@
 //!
 //! Each NDJSON file contains components, one per line.
 //! Files are embedded at compile time via the cache symlink.
+//!
+//! When the `embedded-data` feature is disabled, this module provides stub implementations
+//! that return empty results. This allows CI to build without the cache directory present.
 
+#[cfg(feature = "embedded-data")]
 use include_dir::{Dir, include_dir};
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -11,6 +15,7 @@ use std::sync::OnceLock;
 use super::types::{Framework, Mode};
 
 /// Embedded component data directory (via symlink: cache -> ../../cache/current)
+#[cfg(feature = "embedded-data")]
 static COMPONENTS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/cache/data/components");
 
 /// Snippet data from NDJSON
@@ -56,6 +61,7 @@ impl ComponentRecord {
 static COMPONENTS_INDEX: OnceLock<HashMap<Framework, Vec<ComponentRecord>>> = OnceLock::new();
 
 /// Get or initialize the components index
+#[cfg(feature = "embedded-data")]
 fn get_components() -> &'static HashMap<Framework, Vec<ComponentRecord>> {
     COMPONENTS_INDEX.get_or_init(|| {
         let mut index = HashMap::new();
@@ -76,6 +82,12 @@ fn get_components() -> &'static HashMap<Framework, Vec<ComponentRecord>> {
 
         index
     })
+}
+
+/// Get or initialize the components index (stub when no embedded data)
+#[cfg(not(feature = "embedded-data"))]
+fn get_components() -> &'static HashMap<Framework, Vec<ComponentRecord>> {
+    COMPONENTS_INDEX.get_or_init(HashMap::new)
 }
 
 /// Component reader using embedded NDJSON data
@@ -158,6 +170,23 @@ impl Default for ComponentReader {
 mod tests {
     use super::*;
 
+    // Tests that require embedded data
+    #[cfg(feature = "embedded-data")]
+    mod embedded_tests {
+        use super::*;
+
+        #[test]
+        fn test_has_framework_with_data() {
+            let reader = ComponentReader::new();
+            // At least one framework should have data
+            let has_any = reader.has_framework(Framework::React)
+                || reader.has_framework(Framework::Vue)
+                || reader.has_framework(Framework::Html);
+            assert!(has_any);
+        }
+    }
+
+    // Tests that work without embedded data
     #[test]
     fn test_framework_ndjson_filename() {
         assert_eq!(Framework::React.ndjson_filename(), "react-v4.ndjson");

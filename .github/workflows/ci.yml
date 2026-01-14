@@ -38,7 +38,9 @@ jobs:
         run: cargo fmt --check
 
       - name: clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        # Use --no-default-features to skip embedded-data (cache not available in CI)
+        # The schema feature is tested explicitly
+        run: cargo clippy --all-targets --no-default-features --features schema -- -D warnings
 
   test:
     name: test
@@ -64,10 +66,11 @@ jobs:
           binstall-tools: cargo-nextest
 
       - name: nextest
-        run: cargo nextest run --profile ci
+        # Use --no-default-features to skip embedded-data (cache not available in CI)
+        run: cargo nextest run --profile ci --no-default-features --features schema
 
       - name: doctests
-        run: cargo test --doc
+        run: cargo test --doc --no-default-features --features schema
 
   deny:
     name: cargo-deny
@@ -129,4 +132,5 @@ jobs:
 
       - name: cargo check (MSRV)
         if: steps.msrv.outputs.found == 'true'
-        run: cargo check --all-targets --all-features
+        # Use --no-default-features to skip embedded-data (cache not available in CI)
+        run: cargo check --all-targets --no-default-features --features schema

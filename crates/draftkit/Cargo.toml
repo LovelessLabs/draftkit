@@ -45,8 +45,12 @@ pkg-url = "{ repo }/releases/download/v{ version }/{ name }-v{ version }-{ targe
 pkg-fmt = "zip"
 bin-dir = "{ bin }{ binary-ext }"
 
+[features]
+default = ["embedded-data"]
+embedded-data = ["draftkit-core/embedded-data"]
+
 [dependencies]
-draftkit-core = { version = "0.1", path = "../draftkit-core", features = ["schema"] }
+draftkit-core = { version = "0.1", path = "../draftkit-core", default-features = false, features = ["schema"] }
 clap = { version = "4.5", features = ["derive"] }
 anyhow = "1.0"
 tracing = "0.1.44"

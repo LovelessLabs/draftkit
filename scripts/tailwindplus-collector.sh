@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # TailwindPlus Collector
 # Downloads: UI components (657), Elements docs, Catalyst kit, and 13 template kits
+# Copies: Tailwind CSS v3/v4 documentation from docs/ to cache
 #
 # Usage: tailwindplus-archive.sh [options] [suffix]
 #   --with-v3   Include Tailwind CSS v3 formats (default: v4 only)
@@ -223,6 +224,38 @@ mkdir -p "$DOCS_DIR"
 
 # Initialize progress tracking
 PROGRESS_FILE="$OUT_DIR/.progress"
+
+# Step 0: Copy Tailwind CSS documentation to cache
+if ! skip_if_done "0-docs"; then
+  echo "--- Step 0: Copying Tailwind CSS documentation ---"
+  TAILWIND_DOCS_SRC="$PROJECT_ROOT/docs"
+  TAILWIND_DOCS_DST="$DOCS_DIR/tailwind"
+
+  mkdir -p "$TAILWIND_DOCS_DST/v3"
+  mkdir -p "$TAILWIND_DOCS_DST/v4"
+
+  # Copy v3 docs (excluding README)
+  v3_count=0
+  for f in "$TAILWIND_DOCS_SRC/tailwind-v3"/*.md; do
+    if [[ -f "$f" && "$(basename "$f")" != "README.md" ]]; then
+      cp "$f" "$TAILWIND_DOCS_DST/v3/"
+      ((v3_count++))
+    fi
+  done
+
+  # Copy v4 docs (excluding README)
+  v4_count=0
+  for f in "$TAILWIND_DOCS_SRC/tailwind-v4"/*.md; do
+    if [[ -f "$f" && "$(basename "$f")" != "README.md" ]]; then
+      cp "$f" "$TAILWIND_DOCS_DST/v4/"
+      ((v4_count++))
+    fi
+  done
+
+  echo "${OK} Tailwind docs: v3 ($v3_count files), v4 ($v4_count files)"
+  mark_step "0-docs"
+  echo ""
+fi
 
 # Step 1: Authenticate
 if ! skip_if_done "1-auth"; then
@@ -810,7 +843,8 @@ data_sources=$(jq -n --arg v "$version_desc" '[
   "Elements npm package (@tailwindplus/elements)",
   "Elements documentation (llms.txt)",
   "Catalyst UI Kit",
-  "Template kits (13 themes)"
+  "Template kits (13 themes)",
+  "Tailwind CSS documentation (v3/v4)"
 ]')
 
 jq -n \
@@ -867,6 +901,24 @@ echo "  - Template kits: $kit_count"
 echo "  - Catalyst:      $(test -d "$KITS_DIR/catalyst" && echo "yes" || echo "no")"
 echo "  - Elements npm:  $(test -d "$ELEMENTS_DIR/src" && echo "v${elements_version}" || echo "no")"
 echo "  - Elements docs: $(test -f "$DOCS_DIR/elements-llms.txt" && echo "yes" || echo "no")"
+tw_v3_count=$(find "$DOCS_DIR/tailwind/v3" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+tw_v4_count=$(find "$DOCS_DIR/tailwind/v4" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+echo "  - Tailwind docs: v3 ($tw_v3_count), v4 ($tw_v4_count)"
 echo ""
 echo "Next step: generate embeddings"
 echo "  cargo run --release -p xtask -- gen-embeddings"
+
+# Step 12: Update cache/current symlink
+echo ""
+echo "--- Updating cache/current symlink ---"
+CURRENT_LINK="$CACHE_DIR/current"
+TARGET_BASENAME=$(basename "$OUT_DIR")
+
+# Remove existing symlink if present
+if [[ -L "$CURRENT_LINK" ]]; then
+  rm "$CURRENT_LINK"
+fi
+
+# Create relative symlink: cache/current -> YYYY-MM-DD[-suffix]
+ln -s "$TARGET_BASENAME" "$CURRENT_LINK"
+echo "${OK} cache/current -> $TARGET_BASENAME"

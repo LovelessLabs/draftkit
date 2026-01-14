@@ -3,7 +3,7 @@ mod commands;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Parser, Debug)]
 #[command(name = "xtask")]

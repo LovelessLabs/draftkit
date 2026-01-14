@@ -15,9 +15,9 @@ use candle_core::{DType, Device, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::bert::{BertModel, Config, DTYPE};
 use clap::Parser;
-use hf_hub::{api::tokio::Api, Repo, RepoType};
+use hf_hub::{Repo, RepoType, api::tokio::Api};
 use indicatif::{ProgressBar, ProgressStyle};
-use rusqlite::{ffi::sqlite3_auto_extension, Connection};
+use rusqlite::{Connection, ffi::sqlite3_auto_extension};
 use serde::Deserialize;
 use sqlite_vec::sqlite3_vec_init;
 use tokenizers::Tokenizer;
@@ -50,7 +50,7 @@ struct NdjsonComponent {
     subcategory: String,
     sub_subcategory: String,
     version: String, // "v3" or "v4"
-    // light/dark/system fields ignored for embeddings
+                     // light/dark/system fields ignored for embeddings
 }
 
 /// Deduplicated component metadata for embedding.
@@ -82,7 +82,9 @@ fn normalize(embeddings: &Tensor) -> Result<Tensor> {
 
 /// Extract framework from filename (e.g., "react-v4.ndjson" -> "react").
 fn framework_from_filename(filename: &str) -> Option<&str> {
-    filename.strip_suffix(".ndjson").and_then(|s| s.split('-').next())
+    filename
+        .strip_suffix(".ndjson")
+        .and_then(|s| s.split('-').next())
 }
 
 /// Read all NDJSON files in directory and deduplicate by component ID.
@@ -92,11 +94,7 @@ fn load_components(input_dir: &PathBuf) -> Result<Vec<ComponentMeta>> {
     let entries: Vec<_> = std::fs::read_dir(input_dir)
         .context("Failed to read input directory")?
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .is_some_and(|ext| ext == "ndjson")
-        })
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "ndjson"))
         .collect();
 
     info!("Found {} NDJSON files", entries.len());
@@ -108,17 +106,25 @@ fn load_components(input_dir: &PathBuf) -> Result<Vec<ComponentMeta>> {
 
         debug!("Reading {}", path.display());
 
-        let file = File::open(&path).with_context(|| format!("Failed to open {}", path.display()))?;
+        let file =
+            File::open(&path).with_context(|| format!("Failed to open {}", path.display()))?;
         let reader = BufReader::new(file);
 
         for (line_num, line) in reader.lines().enumerate() {
-            let line = line.with_context(|| format!("Failed to read line {} in {}", line_num + 1, path.display()))?;
+            let line = line.with_context(|| {
+                format!("Failed to read line {} in {}", line_num + 1, path.display())
+            })?;
             if line.trim().is_empty() {
                 continue;
             }
 
-            let component: NdjsonComponent = serde_json::from_str(&line)
-                .with_context(|| format!("Failed to parse line {} in {}", line_num + 1, path.display()))?;
+            let component: NdjsonComponent = serde_json::from_str(&line).with_context(|| {
+                format!(
+                    "Failed to parse line {} in {}",
+                    line_num + 1,
+                    path.display()
+                )
+            })?;
 
             components
                 .entry(component.id.clone())
@@ -221,7 +227,9 @@ pub async fn cmd_gen_embeddings(args: GenEmbeddingsArgs) -> Result<()> {
     let progress = ProgressBar::new(components.len() as u64);
     progress.set_style(
         ProgressStyle::default_bar()
-            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")?
+            .template(
+                "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})",
+            )?
             .progress_chars("#>-"),
     );
 
@@ -246,7 +254,11 @@ pub async fn cmd_gen_embeddings(args: GenEmbeddingsArgs) -> Result<()> {
             .map_err(|e| anyhow::anyhow!("{e}"))?;
 
         // Find max length for padding
-        let max_len = encodings.iter().map(|e| e.get_ids().len()).max().unwrap_or(0);
+        let max_len = encodings
+            .iter()
+            .map(|e| e.get_ids().len())
+            .max()
+            .unwrap_or(0);
 
         // Create input tensors
         let mut input_ids_vec = Vec::new();
@@ -267,8 +279,8 @@ pub async fn cmd_gen_embeddings(args: GenEmbeddingsArgs) -> Result<()> {
         }
 
         let batch_size = encodings.len();
-        let input_ids =
-            Tensor::from_vec(input_ids_vec, (batch_size, max_len), &device)?.to_dtype(DType::U32)?;
+        let input_ids = Tensor::from_vec(input_ids_vec, (batch_size, max_len), &device)?
+            .to_dtype(DType::U32)?;
         let attention_mask = Tensor::from_vec(attention_mask_vec, (batch_size, max_len), &device)?;
         let token_type_ids = input_ids.zeros_like()?;
 

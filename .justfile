@@ -68,6 +68,14 @@ clean-cache:
 gen-embeddings INPUT_DIR *ARGS:
   cargo xtask gen-embeddings --input-dir {{INPUT_DIR}} {{ARGS}}
 
+# Run MCP server (stdio transport, data embedded at compile time)
+serve:
+  cargo run -p draftkit --release -- serve
+
+# Build release binary
+build-release:
+  cargo build -p draftkit --release
+
 zip:
   git archive --format=zip --output=../draftkit-{{datetime('-%Y-%m-%d_%H%M')}}.zip HEAD
 

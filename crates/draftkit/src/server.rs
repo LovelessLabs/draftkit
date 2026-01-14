@@ -93,6 +93,36 @@ pub struct ElementsParams {
     pub component: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct ComponentMetaParams {
+    /// Component ID from search results
+    pub id: String,
+    /// Target framework: html, react, or vue
+    pub framework: Framework,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct ComponentTokensParams {
+    /// Component ID from search results
+    pub id: String,
+    /// Target framework: html, react, or vue (default: react)
+    #[serde(default = "default_framework")]
+    pub framework: Option<Framework>,
+}
+
+const fn default_framework() -> Option<Framework> {
+    Some(Framework::React)
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct CompatibilityParams {
+    /// Component ID, or "summary" for overall compatibility stats
+    pub id: String,
+    /// Target framework: html, react, or vue (default: react)
+    #[serde(default = "default_framework")]
+    pub framework: Option<Framework>,
+}
+
 // Response types
 
 #[derive(Debug, Serialize)]
@@ -443,6 +473,260 @@ impl DraftkitServer {
     }
 
     #[tool(
+        description = "Get component metadata including npm dependencies, icons used, and JS behaviors. Use this to understand what packages need to be installed."
+    )]
+    async fn get_component_meta(
+        &self,
+        Parameters(params): Parameters<ComponentMetaParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let component = self
+            .component_reader
+            .find_by_id(params.framework, &params.id)
+            .ok_or_else(|| {
+                McpError::invalid_params(format!("Component not found: {}", params.id), None)
+            })?;
+
+        let meta = component.meta.as_ref();
+
+        let response = if let Some(m) = meta {
+            // Build install command for packages
+            let install_cmd = if m.dependencies.packages.is_empty() {
+                "No external packages required".to_string()
+            } else {
+                format!("npm install {}", m.dependencies.packages.join(" "))
+            };
+
+            format!(
+                r#"# Component Metadata: {}
+
+## Dependencies
+
+### npm Packages
+{}
+
+### Install Command
+```bash
+{}
+```
+
+### Icons Used ({})
+{}
+
+## Tailwind Compatibility
+- v3 Compatible: {}
+- v4-only Features: {}"#,
+                component.name,
+                if m.dependencies.packages.is_empty() {
+                    "None".to_string()
+                } else {
+                    m.dependencies
+                        .packages
+                        .iter()
+                        .map(|p| format!("- {p}"))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                },
+                install_cmd,
+                m.dependencies.icons.len(),
+                if m.dependencies.icons.is_empty() {
+                    "None".to_string()
+                } else {
+                    m.dependencies.icons.join(", ")
+                },
+                if m.tailwind.v3_compatible {
+                    "Yes"
+                } else {
+                    "No"
+                },
+                if m.tailwind.v4_only.is_empty() {
+                    "None".to_string()
+                } else {
+                    m.tailwind.v4_only.join(", ")
+                }
+            )
+        } else {
+            format!(
+                "# Component: {}\n\nNo metadata available. Run `scripts/metadata.sh` to extract metadata.",
+                component.name
+            )
+        };
+
+        Ok(CallToolResult::success(vec![Content::text(response)]))
+    }
+
+    #[tool(
+        description = "Get Tailwind CSS tokens used by a component (colors, spacing, typography). Useful for design system integration."
+    )]
+    async fn get_component_tokens(
+        &self,
+        Parameters(params): Parameters<ComponentTokensParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let framework = params.framework.unwrap_or(Framework::React);
+        let component = self
+            .component_reader
+            .find_by_id(framework, &params.id)
+            .ok_or_else(|| {
+                McpError::invalid_params(format!("Component not found: {}", params.id), None)
+            })?;
+
+        let meta = component.meta.as_ref();
+
+        let response = if let Some(m) = meta {
+            format!(
+                r#"# Tailwind Tokens: {}
+
+## Colors ({})
+{}
+
+## Spacing ({})
+{}
+
+## Typography ({})
+{}"#,
+                component.name,
+                m.tokens.colors.len(),
+                if m.tokens.colors.is_empty() {
+                    "None detected".to_string()
+                } else {
+                    m.tokens.colors.join(", ")
+                },
+                m.tokens.spacing.len(),
+                if m.tokens.spacing.is_empty() {
+                    "None detected".to_string()
+                } else {
+                    m.tokens.spacing.join(", ")
+                },
+                m.tokens.typography.len(),
+                if m.tokens.typography.is_empty() {
+                    "None detected".to_string()
+                } else {
+                    m.tokens.typography.join(", ")
+                }
+            )
+        } else {
+            format!(
+                "# Component: {}\n\nNo token metadata available. Run `scripts/metadata.sh` to extract metadata.",
+                component.name
+            )
+        };
+
+        Ok(CallToolResult::success(vec![Content::text(response)]))
+    }
+
+    #[tool(
+        description = "Check Tailwind v3/v4 compatibility for a component. Pass 'summary' as id for overall stats."
+    )]
+    async fn get_compatibility_info(
+        &self,
+        Parameters(params): Parameters<CompatibilityParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let framework = params.framework.unwrap_or(Framework::React);
+
+        if params.id == "summary" {
+            // Overall compatibility summary
+            let all = self.component_reader.all(framework);
+            let total = all.len();
+            let mut v3_compatible = 0;
+            let mut v4_only = 0;
+            let mut no_meta = 0;
+            let mut v4_features: HashMap<String, usize> = HashMap::new();
+
+            for component in all {
+                if let Some(meta) = &component.meta {
+                    if meta.tailwind.v3_compatible {
+                        v3_compatible += 1;
+                    } else {
+                        v4_only += 1;
+                    }
+                    for feature in &meta.tailwind.v4_only {
+                        *v4_features.entry(feature.clone()).or_insert(0) += 1;
+                    }
+                } else {
+                    no_meta += 1;
+                }
+            }
+
+            let mut feature_list: Vec<_> = v4_features.into_iter().collect();
+            feature_list.sort_by(|a, b| b.1.cmp(&a.1));
+
+            let response = format!(
+                r#"# Tailwind Compatibility Summary
+
+## Overall Stats
+- Total components: {}
+- v3 compatible: {} ({:.1}%)
+- v4 only: {} ({:.1}%)
+- No metadata: {}
+
+## Most Common v4-only Features
+{}"#,
+                total,
+                v3_compatible,
+                (v3_compatible as f64 / total as f64) * 100.0,
+                v4_only,
+                (v4_only as f64 / total as f64) * 100.0,
+                no_meta,
+                feature_list
+                    .iter()
+                    .take(10)
+                    .map(|(f, count)| format!("- {f}: {count} components"))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            );
+
+            Ok(CallToolResult::success(vec![Content::text(response)]))
+        } else {
+            // Single component compatibility
+            let component = self
+                .component_reader
+                .find_by_id(framework, &params.id)
+                .ok_or_else(|| {
+                    McpError::invalid_params(format!("Component not found: {}", params.id), None)
+                })?;
+
+            let response = if let Some(meta) = &component.meta {
+                format!(
+                    r#"# Compatibility: {}
+
+## Tailwind v3
+- Compatible: {}
+{}
+
+## Tailwind v4
+- Compatible: Yes (all components work with v4)
+- v4-only features used: {}"#,
+                    component.name,
+                    if meta.tailwind.v3_compatible {
+                        "Yes"
+                    } else {
+                        "No"
+                    },
+                    if meta.tailwind.v3_compatible {
+                        String::new()
+                    } else {
+                        format!(
+                            "- Reason: Uses v4-only features: {}",
+                            meta.tailwind.v4_only.join(", ")
+                        )
+                    },
+                    if meta.tailwind.v4_only.is_empty() {
+                        "None".to_string()
+                    } else {
+                        meta.tailwind.v4_only.join(", ")
+                    }
+                )
+            } else {
+                format!(
+                    "# Component: {}\n\nNo compatibility metadata available.",
+                    component.name
+                )
+            };
+
+            Ok(CallToolResult::success(vec![Content::text(response)]))
+        }
+    }
+
+    #[tool(
         description = "Get a summary of everything this MCP server provides, including component counts, available tools, and when the data was last refreshed."
     )]
     async fn get_summary(&self) -> Result<CallToolResult, McpError> {
@@ -503,7 +787,10 @@ impl DraftkitServer {
 7. **get_elements_docs** - Get Elements documentation
 8. **get_tailwind_docs** - Get Tailwind CSS documentation (v3/v4)
 9. **get_template_info** - Get template metadata
-10. **get_summary** - This summary"#,
+10. **get_component_meta** - Get component dependencies and icons
+11. **get_component_tokens** - Get Tailwind tokens used by a component
+12. **get_compatibility_info** - Check v3/v4 compatibility
+13. **get_summary** - This summary"#,
             env!("CARGO_PKG_VERSION"),
             compile_time_date(),
             component_count,

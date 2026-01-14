@@ -222,6 +222,71 @@ pub struct CategoryNode {
     pub component_count: Option<usize>,
 }
 
+// ============================================================================
+// Extracted Metadata (from metadata.sh processing)
+// ============================================================================
+
+/// Extracted metadata from component code analysis.
+///
+/// This is populated by the `scripts/metadata.sh` script which parses
+/// component code to extract dependencies, tokens, and Tailwind features.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct ExtractedMeta {
+    /// Package and icon dependencies
+    #[serde(default)]
+    pub dependencies: DependencyInfo,
+    /// Tailwind CSS tokens used
+    #[serde(default)]
+    pub tokens: TokenInfo,
+    /// Tailwind version compatibility
+    #[serde(default)]
+    pub tailwind: TailwindCompatibility,
+}
+
+/// Dependencies extracted from component imports.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct DependencyInfo {
+    /// npm packages (e.g., `@headlessui/react`, `react`)
+    #[serde(default)]
+    pub packages: Vec<String>,
+    /// Icon names from `@heroicons/react` (e.g., `Bars3Icon`, `XMarkIcon`)
+    #[serde(default)]
+    pub icons: Vec<String>,
+}
+
+/// Tailwind CSS tokens extracted from className attributes.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct TokenInfo {
+    /// Color tokens (e.g., `gray-900`, `indigo-600`)
+    #[serde(default)]
+    pub colors: Vec<String>,
+    /// Spacing tokens (e.g., `px-4`, `gap-6`, `mt-2`)
+    #[serde(default)]
+    pub spacing: Vec<String>,
+    /// Typography tokens (e.g., `text-sm`, `font-semibold`)
+    #[serde(default)]
+    pub typography: Vec<String>,
+}
+
+/// Tailwind CSS version compatibility information.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct TailwindCompatibility {
+    /// v4-only features used (e.g., `data-closed`, `size-`, `inset-ring`)
+    #[serde(default)]
+    pub v4_only: Vec<String>,
+    /// Whether the component is compatible with Tailwind v3
+    #[serde(default = "default_true")]
+    pub v3_compatible: bool,
+}
+
+const fn default_true() -> bool {
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

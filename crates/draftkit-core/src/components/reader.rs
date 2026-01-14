@@ -12,7 +12,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-use super::types::{Framework, Mode};
+use super::types::{ExtractedMeta, Framework, Mode};
 
 /// Embedded component data directory (via symlink: cache -> ../../cache/current)
 #[cfg(feature = "embedded-data")]
@@ -38,6 +38,10 @@ pub struct ComponentRecord {
     pub light: Option<NdjsonSnippet>,
     pub dark: Option<NdjsonSnippet>,
     pub system: Option<NdjsonSnippet>,
+    /// Extracted metadata (dependencies, tokens, compatibility).
+    /// Populated by `scripts/metadata.sh` during data collection.
+    #[serde(default)]
+    pub meta: Option<ExtractedMeta>,
 }
 
 impl ComponentRecord {
@@ -296,6 +300,7 @@ mod tests {
                 preview: Some("preview".to_string()),
             }),
             system: None,
+            meta: None,
         };
 
         assert!(record.get_snippet(Mode::Light).is_some());

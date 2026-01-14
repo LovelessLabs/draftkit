@@ -214,46 +214,52 @@ mod tests {
         let _search = catalog.search_components(Framework::React, "button");
     }
 
-    #[test]
-    fn test_catalyst_operations() {
-        let catalog = Catalog::new();
+    // Tests that require embedded data
+    #[cfg(feature = "embedded-data")]
+    mod embedded_tests {
+        use super::*;
 
-        let names = catalog.list_catalyst_names();
-        assert!(!names.is_empty());
-        assert!(names.contains(&"button".to_string()));
+        #[test]
+        fn test_catalyst_operations() {
+            let catalog = Catalog::new();
 
-        let metadata = catalog.list_catalyst_components();
-        assert!(!metadata.is_empty());
+            let names = catalog.list_catalyst_names();
+            assert!(!names.is_empty());
+            assert!(names.contains(&"button".to_string()));
 
-        let button = catalog.get_catalyst_component("button", CatalystLanguage::TypeScript);
-        assert!(button.is_some());
-    }
+            let metadata = catalog.list_catalyst_components();
+            assert!(!metadata.is_empty());
 
-    #[test]
-    fn test_docs_operations() {
-        let catalog = Catalog::new();
+            let button = catalog.get_catalyst_component("button", CatalystLanguage::TypeScript);
+            assert!(button.is_some());
+        }
 
-        let topics = catalog.list_tailwind_topics(TailwindVersion::V4);
-        assert!(!topics.is_empty());
+        #[test]
+        fn test_docs_operations() {
+            let catalog = Catalog::new();
 
-        let flexbox = catalog.get_tailwind_docs("flexbox", TailwindVersion::V4);
-        assert!(flexbox.is_some());
+            let topics = catalog.list_tailwind_topics(TailwindVersion::V4);
+            assert!(!topics.is_empty());
 
-        let search = catalog.search_tailwind_topics("flex", TailwindVersion::V4);
-        assert!(!search.is_empty());
-    }
+            let flexbox = catalog.get_tailwind_docs("flexbox", TailwindVersion::V4);
+            assert!(flexbox.is_some());
 
-    #[test]
-    fn test_elements_operations() {
-        let catalog = Catalog::new();
+            let search = catalog.search_tailwind_topics("flex", TailwindVersion::V4);
+            assert!(!search.is_empty());
+        }
 
-        let elements = catalog.list_elements();
-        assert_eq!(elements.len(), 9);
+        #[test]
+        fn test_elements_operations() {
+            let catalog = Catalog::new();
 
-        let dialog = catalog.get_element_docs("dialog");
-        assert!(dialog.is_some());
+            let elements = catalog.list_elements();
+            assert_eq!(elements.len(), 9);
 
-        let overview = catalog.get_elements_overview();
-        assert!(overview.contains("Tailwind Plus Elements"));
+            let dialog = catalog.get_element_docs("dialog");
+            assert!(dialog.is_some());
+
+            let overview = catalog.get_elements_overview();
+            assert!(overview.contains("Tailwind Plus Elements"));
+        }
     }
 }

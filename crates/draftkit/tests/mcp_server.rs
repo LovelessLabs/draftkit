@@ -160,6 +160,7 @@ fn mcp_search_components() {
 }
 
 #[test]
+#[cfg(feature = "embedded-data")]
 fn mcp_get_catalyst_component() {
     let requests = &[
         r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}"#,
@@ -173,6 +174,7 @@ fn mcp_get_catalyst_component() {
 }
 
 #[test]
+#[cfg(feature = "embedded-data")]
 fn mcp_get_catalyst_component_javascript() {
     let requests = &[
         r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}"#,
@@ -189,6 +191,7 @@ fn mcp_get_catalyst_component_javascript() {
 }
 
 #[test]
+#[cfg(feature = "embedded-data")]
 fn mcp_list_catalyst_components() {
     let requests = &[
         r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}"#,
@@ -222,6 +225,7 @@ fn mcp_get_elements_docs_dialog() {
 }
 
 #[test]
+#[cfg(feature = "embedded-data")]
 fn mcp_get_elements_docs_overview() {
     let requests = &[
         r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}"#,
@@ -373,6 +377,7 @@ fn mcp_search_with_category() {
 }
 
 #[test]
+#[cfg(feature = "embedded-data")]
 fn mcp_list_categories() {
     let requests = &[
         r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}"#,

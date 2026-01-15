@@ -12,16 +12,26 @@ use rmcp::{ServerHandler, tool, tool_handler, tool_router};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use draftkit_core::catalyst::{self, CatalystLanguage};
 use draftkit_core::components::TailwindVersion;
-use draftkit_core::{ComponentReader, Framework, Mode, docs, elements};
+use draftkit_core::fetch::{ComponentFetcher, FetchError};
+use draftkit_core::intelligence::{PatternMatcher, RecipeOptions, StylePreference};
+use draftkit_core::patterns::PatternLoader;
+use draftkit_core::{ComponentReader, Framework, Mode, cache, docs, elements};
+
+use crate::cli::stderr_spinner;
+use crate::commands::auth;
 
 /// MCP Server for TailwindPlus components and Tailwind CSS documentation
 #[derive(Clone)]
 pub struct DraftkitServer {
     tool_router: rmcp::handler::server::tool::ToolRouter<Self>,
     component_reader: ComponentReader,
+    /// Lazily initialized fetcher for on-demand component fetching
+    fetcher: Arc<Mutex<Option<ComponentFetcher>>>,
 }
 
 // Tool parameter structs
@@ -123,6 +133,27 @@ pub struct CompatibilityParams {
     pub framework: Option<Framework>,
 }
 
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct RecipeParams {
+    /// Pattern name: "saas-landing", "marketing", "portfolio", or custom pattern ID
+    pub pattern: String,
+    /// Section to emphasize (use recommended variant for this section)
+    #[serde(default)]
+    pub emphasis: Option<String>,
+    /// Style preference: "minimal", "balanced", or "bold"
+    #[serde(default)]
+    pub style: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct SuggestSectionParams {
+    /// Pattern name to use for suggestions
+    pub pattern: String,
+    /// Current sections already added to the page (by type, e.g., ["header", "hero"])
+    #[serde(default)]
+    pub current_sections: Vec<String>,
+}
+
 // Response types
 
 #[derive(Debug, Serialize)]
@@ -214,15 +245,50 @@ impl DraftkitServer {
                 McpError::resource_not_found(format!("Component not found: {}", params.id), None)
             })?;
 
-        let snippet = record.get_snippet(params.mode).ok_or_else(|| {
-            McpError::resource_not_found(
+        // Check if this mode variant exists
+        if !record.has_mode(params.mode) {
+            return Err(McpError::resource_not_found(
                 format!(
-                    "Component '{}' does not have a '{}' mode variant",
+                    "Component '{}' does not have {} mode variant",
                     params.id, params.mode
                 ),
                 None,
+            ));
+        }
+
+        // Fetch code on-demand (embedded data contains metadata only, not source code)
+        let code = self
+            .fetch_component_on_demand(
+                &record.uuid,
+                &record.category,
+                &record.subcategory,
+                &record.sub_subcategory,
+                params.framework,
+                params.mode,
             )
-        })?;
+            .await
+            .map_err(|e| match e {
+                FetchError::NotAuthenticated => McpError::internal_error(
+                    "Not authenticated.\n\n\
+                     To fetch TailwindPlus components, run:\n\n\
+                     ```\n\
+                     draftkit auth\n\
+                     ```"
+                        .to_string(),
+                    None,
+                ),
+                FetchError::SessionExpired => McpError::internal_error(
+                    "Session expired. Run `draftkit auth --refresh` to renew.".to_string(),
+                    None,
+                ),
+                FetchError::ComponentNotFound(msg) => {
+                    McpError::resource_not_found(format!("Component not found: {msg}"), None)
+                }
+                other => McpError::internal_error(format!("Fetch failed: {other}"), None),
+            })?;
+
+        // Preview URL comes from embedded metadata
+        let preview = record.preview_url(params.mode).map(ToString::to_string);
 
         let response = ComponentCode {
             id: record.id.clone(),
@@ -232,8 +298,8 @@ impl DraftkitServer {
             sub_subcategory: record.sub_subcategory.clone(),
             framework: params.framework.as_str().to_string(),
             mode: params.mode.as_str().to_string(),
-            code: snippet.code.clone(),
-            preview: snippet.preview.clone(),
+            code,
+            preview,
         };
 
         let json = serde_json::to_string_pretty(&response)
@@ -488,6 +554,7 @@ impl DraftkitServer {
 
         let meta = component.meta.as_ref();
 
+        #[allow(clippy::option_if_let_else)] // if-let clearer for complex format strings
         let response = if let Some(m) = meta {
             // Build install command for packages
             let install_cmd = if m.dependencies.packages.is_empty() {
@@ -571,6 +638,7 @@ impl DraftkitServer {
 
         let meta = component.meta.as_ref();
 
+        #[allow(clippy::option_if_let_else)] // if-let clearer for complex format strings
         let response = if let Some(m) = meta {
             format!(
                 r#"# Tailwind Tokens: {}
@@ -684,6 +752,7 @@ impl DraftkitServer {
                     McpError::invalid_params(format!("Component not found: {}", params.id), None)
                 })?;
 
+            #[allow(clippy::option_if_let_else)] // if-let clearer for complex format strings
             let response = if let Some(meta) = &component.meta {
                 format!(
                     r#"# Compatibility: {}
@@ -790,7 +859,13 @@ impl DraftkitServer {
 10. **get_component_meta** - Get component dependencies and icons
 11. **get_component_tokens** - Get Tailwind tokens used by a component
 12. **get_compatibility_info** - Check v3/v4 compatibility
-13. **get_summary** - This summary"#,
+13. **get_summary** - This summary
+
+## Page Intelligence Tools
+14. **list_patterns** - List available page patterns (saas-landing, marketing, etc.)
+15. **get_recipe** - Generate a complete page recipe from a pattern
+16. **suggest_section** - Get suggestions for the next section to add
+17. **preview_recipe** - Get preview URLs for a recipe's sections"#,
             env!("CARGO_PKG_VERSION"),
             compile_time_date(),
             component_count,
@@ -808,6 +883,220 @@ impl DraftkitServer {
         );
 
         Ok(CallToolResult::success(vec![Content::text(summary)]))
+    }
+
+    #[tool(
+        description = "Generate a complete page recipe from a pattern. Returns ordered sections with component variants, coherence validation, and slot defaults. Available patterns: saas-landing, marketing, portfolio."
+    )]
+    async fn get_recipe(
+        &self,
+        Parameters(params): Parameters<RecipeParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let loader = PatternLoader::builtin_only();
+        let matcher = PatternMatcher::new();
+
+        // Get the pattern
+        let pattern_entry = loader.get(&params.pattern).ok_or_else(|| {
+            let available: Vec<_> = loader.list_all().iter().map(|p| p.pattern.id.as_str()).collect();
+            McpError::invalid_params(
+                format!(
+                    "Pattern '{}' not found. Available patterns: {}",
+                    params.pattern,
+                    available.join(", ")
+                ),
+                None,
+            )
+        })?;
+
+        // Build recipe options
+        let style_pref = params.style.as_deref().and_then(|s| match s {
+            "minimal" => Some(StylePreference::Minimal),
+            "balanced" => Some(StylePreference::Balanced),
+            "bold" => Some(StylePreference::Bold),
+            _ => None,
+        });
+
+        let opts = RecipeOptions {
+            emphasis: params.emphasis,
+            style_preference: style_pref,
+            component_profiles: HashMap::new(), // Would be populated from component metadata
+        };
+
+        // Generate the recipe
+        let recipe = matcher.generate_recipe(&pattern_entry.pattern, &opts);
+
+        // Build response
+        let sections: Vec<serde_json::Value> = recipe
+            .sections
+            .iter()
+            .map(|s| {
+                serde_json::json!({
+                    "section_type": s.section_type,
+                    "variant_id": s.variant_id,
+                    "position": s.position,
+                    "slots": s.slots
+                })
+            })
+            .collect();
+
+        let response = serde_json::json!({
+            "pattern_id": recipe.pattern_id,
+            "sections": sections,
+            "coherence": {
+                "score": recipe.coherence.score,
+                "valid": recipe.coherence.valid,
+                "issues": recipe.coherence.issues.iter().map(|i| {
+                    serde_json::json!({
+                        "category": i.category.as_str(),
+                        "message": i.message,
+                        "severity": i.severity
+                    })
+                }).collect::<Vec<_>>()
+            },
+            "dependencies": recipe.dependencies
+        });
+
+        let json = serde_json::to_string_pretty(&response)
+            .map_err(|e| McpError::internal_error(format!("Serialization error: {e}"), None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(json)]))
+    }
+
+    #[tool(
+        description = "List available page patterns. Returns pattern IDs, descriptions, and section counts."
+    )]
+    async fn list_patterns(&self) -> Result<CallToolResult, McpError> {
+        let loader = PatternLoader::builtin_only();
+        let patterns = loader.list_all();
+
+        let json: Vec<serde_json::Value> = patterns
+            .iter()
+            .map(|p| {
+                serde_json::json!({
+                    "id": p.pattern.id,
+                    "name": p.pattern.name,
+                    "description": p.pattern.description,
+                    "section_count": p.pattern.sections.len(),
+                    "sections": p.pattern.sections.iter().map(|s| &s.section_type).collect::<Vec<_>>()
+                })
+            })
+            .collect();
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&json).unwrap(),
+        )]))
+    }
+
+    #[tool(
+        description = "Suggest the next section to add based on pattern and current page state. Helps iteratively build pages section by section."
+    )]
+    async fn suggest_section(
+        &self,
+        Parameters(params): Parameters<SuggestSectionParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let loader = PatternLoader::builtin_only();
+        let matcher = PatternMatcher::new();
+
+        let pattern_entry = loader.get(&params.pattern).ok_or_else(|| {
+            McpError::invalid_params(format!("Pattern '{}' not found", params.pattern), None)
+        })?;
+
+        let suggestions = matcher.suggest_next_section(
+            &pattern_entry.pattern,
+            &params.current_sections,
+        );
+
+        let json: Vec<serde_json::Value> = suggestions
+            .iter()
+            .map(|s| {
+                serde_json::json!({
+                    "section_type": s.section_type,
+                    "reason": s.reason,
+                    "priority": s.priority,
+                    "required": s.required,
+                    "variants": s.variants.iter().map(|v| {
+                        serde_json::json!({
+                            "id": v.id,
+                            "weight": v.weight,
+                            "recommended": v.recommended
+                        })
+                    }).collect::<Vec<_>>()
+                })
+            })
+            .collect();
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&json).unwrap(),
+        )]))
+    }
+
+    #[tool(
+        description = "Get visual preview URLs for a recipe's sections. Searches for components matching each section type and returns their preview image URLs."
+    )]
+    async fn preview_recipe(
+        &self,
+        Parameters(params): Parameters<RecipeParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let loader = PatternLoader::builtin_only();
+        let matcher = PatternMatcher::new();
+
+        let pattern_entry = loader.get(&params.pattern).ok_or_else(|| {
+            McpError::invalid_params(format!("Pattern '{}' not found", params.pattern), None)
+        })?;
+
+        let style_pref = params.style.as_deref().and_then(|s| match s {
+            "minimal" => Some(StylePreference::Minimal),
+            "balanced" => Some(StylePreference::Balanced),
+            "bold" => Some(StylePreference::Bold),
+            _ => None,
+        });
+
+        let opts = RecipeOptions {
+            emphasis: params.emphasis,
+            style_preference: style_pref,
+            component_profiles: HashMap::new(),
+        };
+
+        let recipe = matcher.generate_recipe(&pattern_entry.pattern, &opts);
+
+        // For each section, search for matching components and get preview URLs
+        let mut section_previews: Vec<serde_json::Value> = Vec::new();
+
+        for section in &recipe.sections {
+            // Search for components matching this section type
+            let search_results = self.component_reader.search(Framework::React, &section.section_type);
+
+            // Take the first few matching components' previews
+            let previews: Vec<serde_json::Value> = search_results
+                .iter()
+                .take(3)
+                .filter_map(|c| {
+                    c.preview_url(Mode::Light).map(|url| {
+                        serde_json::json!({
+                            "component_id": c.id,
+                            "name": c.name,
+                            "preview_url": url
+                        })
+                    })
+                })
+                .collect();
+
+            section_previews.push(serde_json::json!({
+                "section_type": section.section_type,
+                "position": section.position,
+                "selected_variant": section.variant_id,
+                "available_previews": previews
+            }));
+        }
+
+        let response = serde_json::json!({
+            "pattern_id": recipe.pattern_id,
+            "section_previews": section_previews
+        });
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&response).unwrap(),
+        )]))
     }
 }
 
@@ -842,6 +1131,12 @@ impl ServerHandler for DraftkitServer {
 
 Frameworks: react, vue, html
 Modes: light, dark, system
+
+## Page Intelligence (build complete pages)
+- list_patterns: See available page patterns (saas-landing, marketing, portfolio)
+- get_recipe: Generate a complete page with ordered sections and component variants
+- suggest_section: Get suggestions for what section to add next
+- preview_recipe: Get preview URLs for a recipe's sections
 
 ## Catalyst UI Kit (27 atomic React components)
 - list_catalyst_components: List all available Catalyst components
@@ -1022,7 +1317,81 @@ impl DraftkitServer {
         Self {
             tool_router: Self::tool_router(),
             component_reader: ComponentReader::new(),
+            fetcher: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// Get or initialize the component fetcher for on-demand fetching.
+    ///
+    /// Returns an error if not authenticated or session is expired.
+    async fn get_fetcher(&self) -> Result<ComponentFetcher, FetchError> {
+        let mut guard = self.fetcher.lock().await;
+
+        if let Some(fetcher) = guard.as_ref() {
+            return Ok(fetcher.clone());
+        }
+
+        // Get session cookie
+        let session = auth::get_session()
+            .map_err(|_| FetchError::NotAuthenticated)?
+            .ok_or(FetchError::NotAuthenticated)?;
+
+        if session.is_expired() {
+            return Err(FetchError::SessionExpired);
+        }
+
+        // Initialize new fetcher
+        let mut fetcher = ComponentFetcher::new(session.cookie);
+        fetcher.init().await?;
+
+        // Cache for future use
+        *guard = Some(fetcher.clone());
+        drop(guard);
+        Ok(fetcher)
+    }
+
+    /// Fetch a component on-demand from TailwindPlus.
+    ///
+    /// Checks local cache first, then fetches from remote if needed.
+    /// Shows a progress spinner on stderr during network requests.
+    async fn fetch_component_on_demand(
+        &self,
+        uuid: &str,
+        category: &str,
+        subcategory: &str,
+        sub_subcategory: &str,
+        framework: Framework,
+        mode: Mode,
+    ) -> Result<String, FetchError> {
+        // Check local cache first
+        if let Some(code) = cache::get_cached(uuid, framework, mode) {
+            return Ok(code);
+        }
+
+        // Show progress spinner on stderr (MCP uses stdout for JSON-RPC)
+        let spinner = stderr_spinner(&format!("Fetching {sub_subcategory}..."));
+
+        // Get or initialize fetcher
+        let fetcher = match self.get_fetcher().await {
+            Ok(f) => f,
+            Err(e) => {
+                spinner.finish_and_clear();
+                return Err(e);
+            }
+        };
+
+        // Fetch from TailwindPlus
+        let result = fetcher
+            .fetch_component(uuid, category, subcategory, sub_subcategory, framework, mode)
+            .await;
+
+        // Clear spinner before returning
+        match &result {
+            Ok(_) => spinner.finish_with_message("✓ Fetched and cached"),
+            Err(_) => spinner.finish_and_clear(),
+        }
+
+        result
     }
 }
 

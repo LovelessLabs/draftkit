@@ -2,7 +2,7 @@
 #![deny(unsafe_code)]
 
 use clap::Parser;
-use draftkit::{Cli, Commands, commands};
+use draftkit::{Cli, Commands, cli::Styler, commands};
 use draftkit_core::config::ConfigLoader;
 
 mod observability;
@@ -32,7 +32,12 @@ async fn main() -> anyhow::Result<()> {
     let span = observability::correlated_span("cli", &obs_config);
     observability::record_otel_ids(&span);
 
+    let color_mode = cli.color.as_str();
+    let styler = Styler::new(color_mode);
+
     let result = match cli.command {
+        Commands::Auth(args) => commands::auth::cmd_auth(args, &styler).await,
+        Commands::Cache(args) => span.in_scope(|| commands::cache::cmd_cache(args, color_mode)),
         Commands::Info(args) => span.in_scope(|| commands::info::cmd_info(args)),
         Commands::Serve(args) => {
             // Serve command runs async and needs different observability setup

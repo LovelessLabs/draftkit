@@ -67,6 +67,14 @@ dirs = "6.0"
 rmcp = { version = "0.12.0", features = ["server", "transport-io", "macros"] }
 thiserror = "2.0.17"
 schemars = "1.2.0"
+rpassword = "7.4.0"
+indicatif = { version = "0.18.3", features = ["rayon"] }
+console = "0.16.2"
+dialoguer = "0.12.0"
+walkdir = "2.5.0"
+camino = "1.2.2"
+chrono = "0.4.43"
+playwright-rs = { git = "https://github.com/padamson/playwright-rust", version = "0.8.1" }
 
 [dev-dependencies]
 assert_cmd = "2.0"

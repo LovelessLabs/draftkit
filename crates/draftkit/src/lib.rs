@@ -1,5 +1,6 @@
 //! Library interface for draftkit CLI - used for documentation generation
 
+pub mod cli;
 pub mod commands;
 pub mod server;
 
@@ -39,6 +40,10 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Authenticate with TailwindPlus
+    Auth(commands::auth::AuthArgs),
+    /// Manage the local component cache
+    Cache(commands::cache::CacheArgs),
     /// Show package information
     Info(commands::info::InfoArgs),
     /// Run the MCP server
@@ -74,6 +79,12 @@ mod tests {
     }
 
     #[test]
+    fn cli_has_auth_subcommand() {
+        let cmd = Cli::command();
+        assert!(cmd.get_subcommands().any(|c| c.get_name() == "auth"));
+    }
+
+    #[test]
     fn command_function_returns_valid_command() {
         let cmd = command();
         assert_eq!(cmd.get_name(), "draftkit");
@@ -98,6 +109,33 @@ mod tests {
     }
 
     #[test]
+    fn cli_parse_auth_command() {
+        let result = Cli::try_parse_from(["draftkit", "auth"]);
+        assert!(result.is_ok());
+        if let Ok(cli) = result {
+            assert!(matches!(cli.command, Commands::Auth(_)));
+        }
+    }
+
+    #[test]
+    fn cli_parse_auth_status() {
+        let result = Cli::try_parse_from(["draftkit", "auth", "--status"]);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn cli_parse_auth_logout() {
+        let result = Cli::try_parse_from(["draftkit", "auth", "--logout"]);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn cli_parse_auth_refresh() {
+        let result = Cli::try_parse_from(["draftkit", "auth", "--refresh"]);
+        assert!(result.is_ok());
+    }
+
+    #[test]
     fn cli_global_flags_parsed() {
         let result = Cli::try_parse_from(["draftkit", "-q", "-vv", "--color", "never", "info"]);
         assert!(result.is_ok());
@@ -115,5 +153,38 @@ mod tests {
         if let Ok(cli) = result {
             assert_eq!(cli.chdir, Some(PathBuf::from("/tmp")));
         }
+    }
+
+    #[test]
+    fn cli_has_cache_subcommand() {
+        let cmd = Cli::command();
+        assert!(cmd.get_subcommands().any(|c| c.get_name() == "cache"));
+    }
+
+    #[test]
+    fn cli_parse_cache_command() {
+        let result = Cli::try_parse_from(["draftkit", "cache"]);
+        assert!(result.is_ok());
+        if let Ok(cli) = result {
+            assert!(matches!(cli.command, Commands::Cache(_)));
+        }
+    }
+
+    #[test]
+    fn cli_parse_cache_with_stats() {
+        let result = Cli::try_parse_from(["draftkit", "cache", "--stats"]);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn cli_parse_cache_with_clear() {
+        let result = Cli::try_parse_from(["draftkit", "cache", "--clear"]);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn cli_parse_cache_with_path() {
+        let result = Cli::try_parse_from(["draftkit", "cache", "--path"]);
+        assert!(result.is_ok());
     }
 }

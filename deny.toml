@@ -26,6 +26,9 @@ allow = [
     # Unicode/text processing
     "Unicode-3.0",
 
+    # Crypto libraries
+    "OpenSSL",      # Used by aws-lc-sys (via reqwest)
+
     # Data licenses (for embedded certificate bundles)
     "CDLA-Permissive-2.0",  # webpki-roots (Mozilla root certificates)
 ]

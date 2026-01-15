@@ -48,6 +48,7 @@ struct BenchmarkDef {
     name: String,
     module: String,
     return_type: String,
+    setup: Option<String>,
     body: String,
 }
 
@@ -144,6 +145,7 @@ fn build_generation_input(doc: &KdlDocument) -> Result<GenerationInput, String> 
             property_string(node, "name").ok_or_else(|| "benchmark missing name".to_string())?;
         let module = property_string(node, "module").unwrap_or_else(|| "benchmarks".to_string());
         let return_type = property_string(node, "return").unwrap_or_else(|| "()".to_string());
+        let setup = child_code(node, "setup");
         let body =
             child_code(node, "body").ok_or_else(|| format!("benchmark {name} missing body"))?;
 
@@ -151,6 +153,7 @@ fn build_generation_input(doc: &KdlDocument) -> Result<GenerationInput, String> 
             name,
             module,
             return_type,
+            setup,
             body,
         });
     }
@@ -208,6 +211,10 @@ fn render_divan(input: &GenerationInput, core_name: &str) -> Result<String, Stri
             output.push_str("() -> ");
             output.push_str(&bench.return_type);
             output.push_str(" {\n");
+            if let Some(setup) = &bench.setup {
+                output.push_str(&indent_block(setup, 8));
+                output.push('\n');
+            }
             output.push_str(&indent_block(&bench.body, 8));
             output.push_str("\n    }\n\n");
         }
@@ -233,6 +240,10 @@ fn render_gungraun(input: &GenerationInput, core_name: &str) -> Result<String, S
         output.push_str("() -> ");
         output.push_str(&bench.return_type);
         output.push_str(" {\n");
+        if let Some(setup) = &bench.setup {
+            output.push_str(&indent_block(setup, 4));
+            output.push('\n');
+        }
         output.push_str(&indent_block(&bench.body, 4));
         output.push_str("\n}\n\n");
     }

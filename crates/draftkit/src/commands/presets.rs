@@ -287,10 +287,7 @@ fn cmd_stack(args: StackArgs, styler: &Styler) -> anyhow::Result<()> {
 
     if !args.names.is_empty() {
         loader.set_stack(args.names.clone())?;
-        styler.print_success(&format!(
-            "Set preset stack: {}",
-            args.names.join(" → ")
-        ));
+        styler.print_success(&format!("Set preset stack: {}", args.names.join(" → ")));
     }
 
     // Show current stack
@@ -504,8 +501,8 @@ fn cmd_install(args: InstallArgs, styler: &Styler) -> anyhow::Result<()> {
     };
 
     // Validate the TOML
-    let preset_file: PresetFile = toml::from_str(&content)
-        .map_err(|e| anyhow::anyhow!("Invalid preset TOML: {e}"))?;
+    let preset_file: PresetFile =
+        toml::from_str(&content).map_err(|e| anyhow::anyhow!("Invalid preset TOML: {e}"))?;
 
     // Determine output name
     let preset_name = args.name.unwrap_or_else(|| preset_file.preset.name.clone());

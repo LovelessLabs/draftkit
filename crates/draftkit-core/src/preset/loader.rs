@@ -336,11 +336,7 @@ impl PresetLoader {
     }
 
     /// Load all .toml files from a directory.
-    fn load_from_directory(
-        &mut self,
-        dir: &Path,
-        source: PresetSource,
-    ) -> Result<(), PresetError> {
+    fn load_from_directory(&mut self, dir: &Path, source: PresetSource) -> Result<(), PresetError> {
         for entry in std::fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
@@ -352,10 +348,7 @@ impl PresetLoader {
                     }
                     Err(e) => {
                         // Log warning but continue loading other presets
-                        eprintln!(
-                            "Warning: Failed to load preset {}: {e}",
-                            path.display()
-                        );
+                        eprintln!("Warning: Failed to load preset {}: {e}", path.display());
                     }
                 }
             }
@@ -443,7 +436,11 @@ fn merge_style_overrides(dest: &mut StyleOverrides, source: &StyleOverrides) {
 ///
 /// These are example presets that ship with draftkit.
 fn builtin_presets() -> Vec<Preset> {
-    vec![minimalist_preset(), neubrutalism_preset(), corporate_preset()]
+    vec![
+        minimalist_preset(),
+        neubrutalism_preset(),
+        corporate_preset(),
+    ]
 }
 
 /// Minimalist aesthetic preset.
@@ -590,10 +587,7 @@ mod tests {
         let mut loader = PresetLoader::builtin_only();
 
         loader
-            .set_stack(vec![
-                "Corporate".to_string(),
-                "Minimalist".to_string(),
-            ])
+            .set_stack(vec!["Corporate".to_string(), "Minimalist".to_string()])
             .unwrap();
 
         assert_eq!(loader.active_stack(), &["Corporate", "Minimalist"]);

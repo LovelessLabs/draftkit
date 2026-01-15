@@ -39,6 +39,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::Auth(args) => commands::auth::cmd_auth(args, &styler).await,
         Commands::Cache(args) => span.in_scope(|| commands::cache::cmd_cache(args, color_mode)),
         Commands::Info(args) => span.in_scope(|| commands::info::cmd_info(args)),
+        Commands::Presets(args) => {
+            span.in_scope(|| commands::presets::cmd_presets(args, &styler))
+        }
         Commands::Serve(args) => {
             // Serve command runs async and needs different observability setup
             // MCP stdio requires stdout to be clean - only stderr for logs

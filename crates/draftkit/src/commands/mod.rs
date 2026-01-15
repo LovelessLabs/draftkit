@@ -3,4 +3,5 @@
 pub mod auth;
 pub mod cache;
 pub mod info;
+pub mod presets;
 pub mod serve;

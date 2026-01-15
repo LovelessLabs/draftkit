@@ -14,6 +14,7 @@ pub mod fetch;
 pub mod intelligence;
 pub mod manifest;
 pub mod patterns;
+pub mod preset;
 
 pub use catalog::Catalog;
 pub use catalyst::{

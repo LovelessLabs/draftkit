@@ -1,7 +1,7 @@
 //! Info command implementation
 
 use clap::Args;
-use draftkit_core::{ComponentReader, Framework, get_manifest};
+use draftkit_core::{ComponentReader, Framework, get_manifest, manifest_source};
 use serde::Serialize;
 
 #[derive(Args)]
@@ -31,6 +31,7 @@ impl PackageInfo {
 
 #[derive(Serialize)]
 struct EmbeddedDataInfo {
+    source: String,
     licensed_to: String,
     download_date: String,
     tailwind_version: String,
@@ -57,6 +58,7 @@ struct FullInfo {
 
 fn get_embedded_data_info() -> Option<EmbeddedDataInfo> {
     let manifest = get_manifest()?;
+    let source = manifest_source();
     let reader = ComponentReader::new();
 
     let react_count = reader.component_count(Framework::React);
@@ -64,6 +66,7 @@ fn get_embedded_data_info() -> Option<EmbeddedDataInfo> {
     let html_count = reader.component_count(Framework::Html);
 
     Some(EmbeddedDataInfo {
+        source: source.to_string(),
         licensed_to: manifest.downloaded_by.clone(),
         download_date: manifest.download_date().to_string(),
         tailwind_version: manifest.versions.tailwind.clone(),
@@ -97,7 +100,7 @@ pub fn cmd_info(args: InfoArgs) -> anyhow::Result<()> {
         println!();
 
         if let Some(data) = embedded_data {
-            println!("Embedded Data:");
+            println!("Data (source: {}):", data.source);
             println!("  TailwindPlus Account: {}", data.licensed_to);
             println!("  Download date:        {}", data.download_date);
             println!("  Tailwind:             v{}", data.tailwind_version);

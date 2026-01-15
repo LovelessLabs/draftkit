@@ -41,7 +41,11 @@ fn construct_loader() -> ConfigLoader {
 
 #[library_benchmark]
 fn load_builtin_patterns() -> usize {
-    black_box(draftkit_core::patterns::PatternLoader::builtin_only().list_all().len())
+    black_box(
+        draftkit_core::patterns::PatternLoader::builtin_only()
+            .list_all()
+            .len(),
+    )
 }
 
 #[library_benchmark]
@@ -76,15 +80,15 @@ fn coherence_check_pair() -> draftkit_core::intelligence::CompatibilityScore {
 #[library_benchmark]
 fn coherence_check_page() -> draftkit_core::intelligence::PageCoherence {
     let checker = draftkit_core::intelligence::CoherenceChecker::new();
-    let profiles: Vec<draftkit_core::components::StyleProfile> = (0..5).map(|i| {
-        draftkit_core::components::StyleProfile {
+    let profiles: Vec<draftkit_core::components::StyleProfile> = (0..5)
+        .map(|i| draftkit_core::components::StyleProfile {
             visual_weight: 0.3 + (i as f32 * 0.05),
             formality: 0.7,
             color_intensity: 0.4,
             spacing_density: 0.6,
             typography_scale: draftkit_core::components::TypographyScale::Medium,
-        }
-    }).collect();
+        })
+        .collect();
     let components: Vec<(&str, &draftkit_core::components::StyleProfile)> = vec![
         ("header", &profiles[0]),
         ("hero", &profiles[1]),

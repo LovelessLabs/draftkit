@@ -140,7 +140,11 @@ impl PatternLoader {
     }
 
     /// Load all .toml files from a directory.
-    fn load_from_directory(&mut self, dir: &Path, source: PatternSource) -> Result<(), PatternError> {
+    fn load_from_directory(
+        &mut self,
+        dir: &Path,
+        source: PatternSource,
+    ) -> Result<(), PatternError> {
         for entry in std::fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
@@ -161,7 +165,11 @@ impl PatternLoader {
     }
 
     /// Load a single pattern file.
-    fn load_pattern_file(&self, path: &Path, source: PatternSource) -> Result<LoadedPattern, PatternError> {
+    fn load_pattern_file(
+        &self,
+        path: &Path,
+        source: PatternSource,
+    ) -> Result<LoadedPattern, PatternError> {
         let content = std::fs::read_to_string(path)?;
         let pattern_file: PatternFile = toml::from_str(&content)?;
 
@@ -210,7 +218,12 @@ fn saas_landing_pattern() -> Pattern {
         id: "saas-landing".to_string(),
         name: "SaaS Landing Page".to_string(),
         description: "Standard SaaS product landing page with pricing focus".to_string(),
-        tags: vec!["landing".into(), "saas".into(), "b2b".into(), "marketing".into()],
+        tags: vec![
+            "landing".into(),
+            "saas".into(),
+            "b2b".into(),
+            "marketing".into(),
+        ],
         author: "draftkit-core".to_string(),
         version: "1.0.0".to_string(),
         style_constraints: StyleConstraints {
@@ -226,13 +239,38 @@ fn saas_landing_pattern() -> Pattern {
                 position: 0,
                 count: None,
                 variants: vec![
-                    VariantSpec { id: "header-simple-centered".into(), weight: 0.4, recommended: false },
-                    VariantSpec { id: "header-with-cta".into(), weight: 0.6, recommended: true },
+                    VariantSpec {
+                        id: "header-simple-centered".into(),
+                        weight: 0.4,
+                        recommended: false,
+                    },
+                    VariantSpec {
+                        id: "header-with-cta".into(),
+                        weight: 0.6,
+                        recommended: true,
+                    },
                 ],
                 slots: vec![
-                    SlotSpec { name: "logo".into(), slot_type: SlotType::Image, required: true, ..Default::default() },
-                    SlotSpec { name: "nav_items".into(), slot_type: SlotType::Array, required: false, default: Some("Features, Pricing, About".into()), ..Default::default() },
-                    SlotSpec { name: "cta_text".into(), slot_type: SlotType::String, required: false, default: Some("Get Started".into()), ..Default::default() },
+                    SlotSpec {
+                        name: "logo".into(),
+                        slot_type: SlotType::Image,
+                        required: true,
+                        ..Default::default()
+                    },
+                    SlotSpec {
+                        name: "nav_items".into(),
+                        slot_type: SlotType::Array,
+                        required: false,
+                        default: Some("Features, Pricing, About".into()),
+                        ..Default::default()
+                    },
+                    SlotSpec {
+                        name: "cta_text".into(),
+                        slot_type: SlotType::String,
+                        required: false,
+                        default: Some("Get Started".into()),
+                        ..Default::default()
+                    },
                 ],
                 constraints: vec![],
             },
@@ -242,14 +280,43 @@ fn saas_landing_pattern() -> Pattern {
                 position: 1,
                 count: None,
                 variants: vec![
-                    VariantSpec { id: "hero-split-screenshot".into(), weight: 0.5, recommended: true },
-                    VariantSpec { id: "hero-centered-cta".into(), weight: 0.3, recommended: false },
-                    VariantSpec { id: "hero-video-background".into(), weight: 0.2, recommended: false },
+                    VariantSpec {
+                        id: "hero-split-screenshot".into(),
+                        weight: 0.5,
+                        recommended: true,
+                    },
+                    VariantSpec {
+                        id: "hero-centered-cta".into(),
+                        weight: 0.3,
+                        recommended: false,
+                    },
+                    VariantSpec {
+                        id: "hero-video-background".into(),
+                        weight: 0.2,
+                        recommended: false,
+                    },
                 ],
                 slots: vec![
-                    SlotSpec { name: "headline".into(), slot_type: SlotType::String, required: true, example: Some("Ship faster with AI".into()), ..Default::default() },
-                    SlotSpec { name: "subheadline".into(), slot_type: SlotType::String, required: false, ..Default::default() },
-                    SlotSpec { name: "cta_primary".into(), slot_type: SlotType::String, required: false, default: Some("Start free trial".into()), ..Default::default() },
+                    SlotSpec {
+                        name: "headline".into(),
+                        slot_type: SlotType::String,
+                        required: true,
+                        example: Some("Ship faster with AI".into()),
+                        ..Default::default()
+                    },
+                    SlotSpec {
+                        name: "subheadline".into(),
+                        slot_type: SlotType::String,
+                        required: false,
+                        ..Default::default()
+                    },
+                    SlotSpec {
+                        name: "cta_primary".into(),
+                        slot_type: SlotType::String,
+                        required: false,
+                        default: Some("Start free trial".into()),
+                        ..Default::default()
+                    },
                 ],
                 constraints: vec!["must_include_cta".into()],
             },
@@ -259,12 +326,34 @@ fn saas_landing_pattern() -> Pattern {
                 position: 2,
                 count: Some(RepeatCount { min: 1, max: 3 }),
                 variants: vec![
-                    VariantSpec { id: "feature-grid-icons".into(), weight: 0.5, recommended: true },
-                    VariantSpec { id: "feature-alternating-screenshots".into(), weight: 0.4, recommended: false },
+                    VariantSpec {
+                        id: "feature-grid-icons".into(),
+                        weight: 0.5,
+                        recommended: true,
+                    },
+                    VariantSpec {
+                        id: "feature-alternating-screenshots".into(),
+                        weight: 0.4,
+                        recommended: false,
+                    },
                 ],
                 slots: vec![
-                    SlotSpec { name: "heading".into(), slot_type: SlotType::String, required: false, example: Some("Everything you need".into()), ..Default::default() },
-                    SlotSpec { name: "features".into(), slot_type: SlotType::Array, required: true, min: Some(3), max: Some(6), schema: Some("feature_item".into()), ..Default::default() },
+                    SlotSpec {
+                        name: "heading".into(),
+                        slot_type: SlotType::String,
+                        required: false,
+                        example: Some("Everything you need".into()),
+                        ..Default::default()
+                    },
+                    SlotSpec {
+                        name: "features".into(),
+                        slot_type: SlotType::Array,
+                        required: true,
+                        min: Some(3),
+                        max: Some(6),
+                        schema: Some("feature_item".into()),
+                        ..Default::default()
+                    },
                 ],
                 constraints: vec![],
             },
@@ -274,12 +363,25 @@ fn saas_landing_pattern() -> Pattern {
                 position: 3,
                 count: None,
                 variants: vec![
-                    VariantSpec { id: "pricing-three-tier".into(), weight: 0.6, recommended: true },
-                    VariantSpec { id: "pricing-four-tier-enterprise".into(), weight: 0.3, recommended: false },
+                    VariantSpec {
+                        id: "pricing-three-tier".into(),
+                        weight: 0.6,
+                        recommended: true,
+                    },
+                    VariantSpec {
+                        id: "pricing-four-tier-enterprise".into(),
+                        weight: 0.3,
+                        recommended: false,
+                    },
                 ],
-                slots: vec![
-                    SlotSpec { name: "billing_period".into(), slot_type: SlotType::Enum, required: false, values: Some(vec!["monthly".into(), "annual".into(), "both".into()]), default: Some("both".into()), ..Default::default() },
-                ],
+                slots: vec![SlotSpec {
+                    name: "billing_period".into(),
+                    slot_type: SlotType::Enum,
+                    required: false,
+                    values: Some(vec!["monthly".into(), "annual".into(), "both".into()]),
+                    default: Some("both".into()),
+                    ..Default::default()
+                }],
                 constraints: vec![],
             },
             SectionSpec {
@@ -287,9 +389,11 @@ fn saas_landing_pattern() -> Pattern {
                 required: true,
                 position: 4,
                 count: None,
-                variants: vec![
-                    VariantSpec { id: "cta-simple-centered".into(), weight: 0.5, recommended: true },
-                ],
+                variants: vec![VariantSpec {
+                    id: "cta-simple-centered".into(),
+                    weight: 0.5,
+                    recommended: true,
+                }],
                 slots: vec![],
                 constraints: vec![],
             },
@@ -298,22 +402,49 @@ fn saas_landing_pattern() -> Pattern {
                 required: true,
                 position: 5,
                 count: None,
-                variants: vec![
-                    VariantSpec { id: "footer-four-column".into(), weight: 0.7, recommended: true },
-                ],
+                variants: vec![VariantSpec {
+                    id: "footer-four-column".into(),
+                    weight: 0.7,
+                    recommended: true,
+                }],
                 slots: vec![],
                 constraints: vec![],
             },
         ],
-        schemas: HashMap::from([
-            ("feature_item".to_string(), SlotSchema {
+        schemas: HashMap::from([(
+            "feature_item".to_string(),
+            SlotSchema {
                 fields: HashMap::from([
-                    ("icon".to_string(), FieldSpec { field_type: SlotType::String, required: true, default: None, min: None }),
-                    ("title".to_string(), FieldSpec { field_type: SlotType::String, required: true, default: None, min: None }),
-                    ("description".to_string(), FieldSpec { field_type: SlotType::String, required: true, default: None, min: None }),
+                    (
+                        "icon".to_string(),
+                        FieldSpec {
+                            field_type: SlotType::String,
+                            required: true,
+                            default: None,
+                            min: None,
+                        },
+                    ),
+                    (
+                        "title".to_string(),
+                        FieldSpec {
+                            field_type: SlotType::String,
+                            required: true,
+                            default: None,
+                            min: None,
+                        },
+                    ),
+                    (
+                        "description".to_string(),
+                        FieldSpec {
+                            field_type: SlotType::String,
+                            required: true,
+                            default: None,
+                            min: None,
+                        },
+                    ),
                 ]),
-            }),
-        ]),
+            },
+        )]),
         rules: CompositionRules::default(),
     }
 }
@@ -341,9 +472,11 @@ fn marketing_pattern() -> Pattern {
                 required: true,
                 position: 0,
                 count: None,
-                variants: vec![
-                    VariantSpec { id: "header-simple-centered".into(), weight: 0.5, recommended: true },
-                ],
+                variants: vec![VariantSpec {
+                    id: "header-simple-centered".into(),
+                    weight: 0.5,
+                    recommended: true,
+                }],
                 slots: vec![],
                 constraints: vec![],
             },
@@ -352,9 +485,11 @@ fn marketing_pattern() -> Pattern {
                 required: true,
                 position: 1,
                 count: None,
-                variants: vec![
-                    VariantSpec { id: "hero-centered-cta".into(), weight: 0.6, recommended: true },
-                ],
+                variants: vec![VariantSpec {
+                    id: "hero-centered-cta".into(),
+                    weight: 0.6,
+                    recommended: true,
+                }],
                 slots: vec![],
                 constraints: vec![],
             },
@@ -363,9 +498,11 @@ fn marketing_pattern() -> Pattern {
                 required: true,
                 position: 2,
                 count: Some(RepeatCount { min: 1, max: 4 }),
-                variants: vec![
-                    VariantSpec { id: "feature-alternating-screenshots".into(), weight: 0.6, recommended: true },
-                ],
+                variants: vec![VariantSpec {
+                    id: "feature-alternating-screenshots".into(),
+                    weight: 0.6,
+                    recommended: true,
+                }],
                 slots: vec![],
                 constraints: vec![],
             },
@@ -374,9 +511,11 @@ fn marketing_pattern() -> Pattern {
                 required: false,
                 position: 3,
                 count: None,
-                variants: vec![
-                    VariantSpec { id: "testimonial-grid".into(), weight: 0.5, recommended: true },
-                ],
+                variants: vec![VariantSpec {
+                    id: "testimonial-grid".into(),
+                    weight: 0.5,
+                    recommended: true,
+                }],
                 slots: vec![],
                 constraints: vec![],
             },
@@ -385,9 +524,11 @@ fn marketing_pattern() -> Pattern {
                 required: true,
                 position: 4,
                 count: None,
-                variants: vec![
-                    VariantSpec { id: "cta-simple-centered".into(), weight: 0.5, recommended: true },
-                ],
+                variants: vec![VariantSpec {
+                    id: "cta-simple-centered".into(),
+                    weight: 0.5,
+                    recommended: true,
+                }],
                 slots: vec![],
                 constraints: vec![],
             },
@@ -396,9 +537,11 @@ fn marketing_pattern() -> Pattern {
                 required: true,
                 position: 5,
                 count: None,
-                variants: vec![
-                    VariantSpec { id: "footer-simple".into(), weight: 0.6, recommended: true },
-                ],
+                variants: vec![VariantSpec {
+                    id: "footer-simple".into(),
+                    weight: 0.6,
+                    recommended: true,
+                }],
                 slots: vec![],
                 constraints: vec![],
             },
@@ -431,9 +574,11 @@ fn portfolio_pattern() -> Pattern {
                 required: true,
                 position: 0,
                 count: None,
-                variants: vec![
-                    VariantSpec { id: "header-minimal".into(), weight: 0.6, recommended: true },
-                ],
+                variants: vec![VariantSpec {
+                    id: "header-minimal".into(),
+                    weight: 0.6,
+                    recommended: true,
+                }],
                 slots: vec![],
                 constraints: vec![],
             },
@@ -442,9 +587,11 @@ fn portfolio_pattern() -> Pattern {
                 required: true,
                 position: 1,
                 count: None,
-                variants: vec![
-                    VariantSpec { id: "hero-personal-intro".into(), weight: 0.5, recommended: true },
-                ],
+                variants: vec![VariantSpec {
+                    id: "hero-personal-intro".into(),
+                    weight: 0.5,
+                    recommended: true,
+                }],
                 slots: vec![],
                 constraints: vec![],
             },
@@ -453,9 +600,11 @@ fn portfolio_pattern() -> Pattern {
                 required: true,
                 position: 2,
                 count: Some(RepeatCount { min: 1, max: 5 }),
-                variants: vec![
-                    VariantSpec { id: "portfolio-grid".into(), weight: 0.6, recommended: true },
-                ],
+                variants: vec![VariantSpec {
+                    id: "portfolio-grid".into(),
+                    weight: 0.6,
+                    recommended: true,
+                }],
                 slots: vec![],
                 constraints: vec![],
             },
@@ -464,9 +613,11 @@ fn portfolio_pattern() -> Pattern {
                 required: true,
                 position: 3,
                 count: None,
-                variants: vec![
-                    VariantSpec { id: "footer-minimal".into(), weight: 0.6, recommended: true },
-                ],
+                variants: vec![VariantSpec {
+                    id: "footer-minimal".into(),
+                    weight: 0.6,
+                    recommended: true,
+                }],
                 slots: vec![],
                 constraints: vec![],
             },

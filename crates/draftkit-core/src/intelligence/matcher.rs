@@ -114,7 +114,8 @@ impl PatternMatcher {
 
         // Find which required sections are missing
         for section_spec in &pattern.sections {
-            let section_present = current_sections.iter()
+            let section_present = current_sections
+                .iter()
                 .any(|s| s == &section_spec.section_type);
 
             if section_spec.required && !section_present {
@@ -138,7 +139,9 @@ impl PatternMatcher {
                     }
 
                     // Find the spec for this section type
-                    if let Some(spec) = pattern.sections.iter()
+                    if let Some(spec) = pattern
+                        .sections
+                        .iter()
                         .find(|s| s.section_type == next_type)
                     {
                         // Don't duplicate required suggestions
@@ -157,7 +160,11 @@ impl PatternMatcher {
         }
 
         // Sort by priority (highest first)
-        suggestions.sort_by(|a, b| b.priority.partial_cmp(&a.priority).unwrap_or(std::cmp::Ordering::Equal));
+        suggestions.sort_by(|a, b| {
+            b.priority
+                .partial_cmp(&a.priority)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         suggestions
     }
@@ -198,17 +205,17 @@ impl PatternMatcher {
             }
         } else {
             // Build profile list for validation
-            let profiles: Vec<(&str, &StyleProfile)> = sections.iter()
+            let profiles: Vec<(&str, &StyleProfile)> = sections
+                .iter()
                 .filter_map(|s| {
-                    opts.component_profiles.get(&s.variant_id)
+                    opts.component_profiles
+                        .get(&s.variant_id)
                         .map(|p| (s.variant_id.as_str(), p))
                 })
                 .collect();
 
-            self.coherence_checker.check_page_coherence_with_constraints(
-                &profiles,
-                &pattern.style_constraints,
-            )
+            self.coherence_checker
+                .check_page_coherence_with_constraints(&profiles, &pattern.style_constraints)
         };
 
         Recipe {
@@ -220,7 +227,11 @@ impl PatternMatcher {
     }
 
     /// Select the best variant for a section based on options.
-    fn select_variant<'a>(&self, section: &'a SectionSpec, opts: &RecipeOptions) -> &'a VariantSpec {
+    fn select_variant<'a>(
+        &self,
+        section: &'a SectionSpec,
+        opts: &RecipeOptions,
+    ) -> &'a VariantSpec {
         // If this section is emphasized, use recommended variant
         if opts.emphasis.as_ref() == Some(&section.section_type) {
             if let Some(recommended) = section.variants.iter().find(|v| v.recommended) {
@@ -240,11 +251,19 @@ impl PatternMatcher {
             }
             Some(StylePreference::Balanced) | None => {
                 // Use highest-weighted variant
-                section.variants.iter()
-                    .max_by(|a, b| a.weight.partial_cmp(&b.weight).unwrap_or(std::cmp::Ordering::Equal))
+                section.variants.iter().max_by(|a, b| {
+                    a.weight
+                        .partial_cmp(&b.weight)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
             }
         }
-        .unwrap_or_else(|| section.variants.first().expect("Section must have at least one variant"))
+        .unwrap_or_else(|| {
+            section
+                .variants
+                .first()
+                .expect("Section must have at least one variant")
+        })
     }
 
     /// Generate default slot values for a section.
@@ -312,10 +331,7 @@ mod tests {
         let matcher = PatternMatcher::new();
 
         // Page has header - should suggest hero next
-        let suggestions = matcher.suggest_next_section(
-            &saas.pattern,
-            &["header".to_string()],
-        );
+        let suggestions = matcher.suggest_next_section(&saas.pattern, &["header".to_string()]);
 
         let has_hero_suggestion = suggestions.iter().any(|s| s.section_type == "hero");
         assert!(has_hero_suggestion, "Should suggest hero after header");
@@ -353,7 +369,9 @@ mod tests {
         let recipe = matcher.generate_recipe(&saas.pattern, &opts);
 
         // Find pricing section
-        let pricing = recipe.sections.iter()
+        let pricing = recipe
+            .sections
+            .iter()
             .find(|s| s.section_type == "pricing")
             .expect("Should have pricing section");
 
@@ -370,7 +388,9 @@ mod tests {
         let recipe = matcher.generate_recipe(&saas.pattern, &RecipeOptions::default());
 
         // Header should have default cta_text
-        let header = recipe.sections.iter()
+        let header = recipe
+            .sections
+            .iter()
             .find(|s| s.section_type == "header")
             .expect("Should have header");
 
@@ -388,6 +408,10 @@ mod tests {
         // No duplicate section types
         let types: Vec<_> = suggestions.iter().map(|s| &s.section_type).collect();
         let unique: std::collections::HashSet<_> = types.iter().collect();
-        assert_eq!(types.len(), unique.len(), "Should not have duplicate suggestions");
+        assert_eq!(
+            types.len(),
+            unique.len(),
+            "Should not have duplicate suggestions"
+        );
     }
 }

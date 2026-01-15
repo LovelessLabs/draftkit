@@ -13,9 +13,7 @@ pub use types::{
 };
 
 // Intelligence layer types (for pattern matching and coherence)
-pub use types::{
-    ComponentIntelligence, PagePosition, StyleProfile, TypographyScale, UsageContext,
-};
+pub use types::{ComponentIntelligence, PagePosition, StyleProfile, TypographyScale, UsageContext};
 
 // Extracted metadata types
 pub use types::{DependencyInfo, ExtractedMeta, TailwindCompatibility, TokenInfo};

@@ -109,11 +109,7 @@ impl CoherenceChecker {
 
     /// Check compatibility between two components.
     #[must_use]
-    pub fn check_compatibility(
-        &self,
-        a: &StyleProfile,
-        b: &StyleProfile,
-    ) -> CompatibilityScore {
+    pub fn check_compatibility(&self, a: &StyleProfile, b: &StyleProfile) -> CompatibilityScore {
         self.check_compatibility_with_constraints(a, b, &self.default_constraints)
     }
 
@@ -131,7 +127,8 @@ impl CoherenceChecker {
         // Visual weight variance
         let weight_diff = (a.visual_weight - b.visual_weight).abs();
         if weight_diff > constraints.visual_weight_variance {
-            let severity = (weight_diff - constraints.visual_weight_variance) / (1.0 - constraints.visual_weight_variance);
+            let severity = (weight_diff - constraints.visual_weight_variance)
+                / (1.0 - constraints.visual_weight_variance);
             score -= 0.25 * severity;
             issues.push(CoherenceIssue {
                 category: IssueCategory::VisualWeight,
@@ -146,7 +143,8 @@ impl CoherenceChecker {
         // Spacing density variance
         let spacing_diff = (a.spacing_density - b.spacing_density).abs();
         if spacing_diff > constraints.spacing_density_variance {
-            let severity = (spacing_diff - constraints.spacing_density_variance) / (1.0 - constraints.spacing_density_variance);
+            let severity = (spacing_diff - constraints.spacing_density_variance)
+                / (1.0 - constraints.spacing_density_variance);
             score -= 0.2 * severity;
             issues.push(CoherenceIssue {
                 category: IssueCategory::SpacingDensity,
@@ -215,10 +213,7 @@ impl CoherenceChecker {
 
     /// Check coherence across an entire page of components.
     #[must_use]
-    pub fn check_page_coherence(
-        &self,
-        components: &[(&str, &StyleProfile)],
-    ) -> PageCoherence {
+    pub fn check_page_coherence(&self, components: &[(&str, &StyleProfile)]) -> PageCoherence {
         self.check_page_coherence_with_constraints(components, &self.default_constraints)
     }
 
@@ -274,7 +269,8 @@ impl CoherenceChecker {
             let (id_a, profile_a) = window[0];
             let (id_b, profile_b) = window[1];
 
-            let compat = self.check_compatibility_with_constraints(profile_a, profile_b, constraints);
+            let compat =
+                self.check_compatibility_with_constraints(profile_a, profile_b, constraints);
             pairwise_scores.push((id_a.to_string(), id_b.to_string(), compat.score));
 
             // Weight pairwise scores
@@ -341,7 +337,8 @@ impl CoherenceChecker {
                 }
                 IssueCategory::Typography => {
                     suggestions.push(
-                        "Typography scales differ - consider components with matching text sizes".to_string()
+                        "Typography scales differ - consider components with matching text sizes"
+                            .to_string(),
                     );
                 }
                 IssueCategory::Formality => {
@@ -393,10 +390,10 @@ mod tests {
     fn heavy_profile() -> StyleProfile {
         // Intentionally extreme to ensure incompatibility with minimal_profile
         StyleProfile {
-            visual_weight: 0.95,        // diff=0.75 from minimal's 0.2
-            formality: 0.85,            // diff=0.15 from minimal's 0.7
-            color_intensity: 0.85,      // diff=0.55 from minimal's 0.3
-            spacing_density: 0.15,      // diff=0.45 from minimal's 0.6
+            visual_weight: 0.95,   // diff=0.75 from minimal's 0.2
+            formality: 0.85,       // diff=0.15 from minimal's 0.7
+            color_intensity: 0.85, // diff=0.55 from minimal's 0.3
+            spacing_density: 0.15, // diff=0.45 from minimal's 0.6
             typography_scale: TypographyScale::Large,
         }
     }
@@ -416,7 +413,11 @@ mod tests {
         let checker = CoherenceChecker::new();
         let score = checker.check_compatibility(&minimal_profile(), &similar_profile());
 
-        assert!(score.score > 0.8, "Similar profiles should score > 0.8, got {}", score.score);
+        assert!(
+            score.score > 0.8,
+            "Similar profiles should score > 0.8, got {}",
+            score.score
+        );
         assert!(score.is_compatible());
         assert!(score.issues.is_empty() || score.issues.iter().all(|i| i.severity < 0.5));
     }
@@ -426,7 +427,11 @@ mod tests {
         let checker = CoherenceChecker::new();
         let score = checker.check_compatibility(&minimal_profile(), &heavy_profile());
 
-        assert!(score.score < 0.7, "Mismatched profiles should score < 0.7, got {}", score.score);
+        assert!(
+            score.score < 0.7,
+            "Mismatched profiles should score < 0.7, got {}",
+            score.score
+        );
         assert!(!score.is_compatible());
         assert!(!score.issues.is_empty());
     }
@@ -436,7 +441,9 @@ mod tests {
         let checker = CoherenceChecker::new();
         let score = checker.check_compatibility(&minimal_profile(), &heavy_profile());
 
-        let has_weight_issue = score.issues.iter()
+        let has_weight_issue = score
+            .issues
+            .iter()
             .any(|i| i.category == IssueCategory::VisualWeight);
         assert!(has_weight_issue, "Should detect visual weight mismatch");
     }
@@ -446,10 +453,7 @@ mod tests {
         let checker = CoherenceChecker::new();
         let minimal = minimal_profile();
         let similar = similar_profile();
-        let components = vec![
-            ("header", &minimal),
-            ("hero", &similar),
-        ];
+        let components = vec![("header", &minimal), ("hero", &similar)];
 
         let coherence = checker.check_page_coherence(&components);
         assert!(coherence.valid);
@@ -461,10 +465,7 @@ mod tests {
         let checker = CoherenceChecker::new();
         let minimal = minimal_profile();
         let heavy = heavy_profile();
-        let components = vec![
-            ("header", &minimal),
-            ("hero", &heavy),
-        ];
+        let components = vec![("header", &minimal), ("hero", &heavy)];
 
         let coherence = checker.check_page_coherence(&components);
         assert!(!coherence.valid || coherence.score < 0.7);
@@ -492,7 +493,10 @@ mod tests {
         let checker = CoherenceChecker::new();
         let score = checker.check_compatibility(&minimal_profile(), &heavy_profile());
 
-        assert!(!score.suggestions.is_empty(), "Should generate suggestions for issues");
+        assert!(
+            !score.suggestions.is_empty(),
+            "Should generate suggestions for issues"
+        );
     }
 
     #[test]

@@ -274,7 +274,7 @@ impl DraftkitServer {
                      ```\n\
                      draftkit auth\n\
                      ```"
-                        .to_string(),
+                    .to_string(),
                     None,
                 ),
                 FetchError::SessionExpired => McpError::internal_error(
@@ -897,7 +897,11 @@ impl DraftkitServer {
 
         // Get the pattern
         let pattern_entry = loader.get(&params.pattern).ok_or_else(|| {
-            let available: Vec<_> = loader.list_all().iter().map(|p| p.pattern.id.as_str()).collect();
+            let available: Vec<_> = loader
+                .list_all()
+                .iter()
+                .map(|p| p.pattern.id.as_str())
+                .collect();
             McpError::invalid_params(
                 format!(
                     "Pattern '{}' not found. Available patterns: {}",
@@ -1001,10 +1005,8 @@ impl DraftkitServer {
             McpError::invalid_params(format!("Pattern '{}' not found", params.pattern), None)
         })?;
 
-        let suggestions = matcher.suggest_next_section(
-            &pattern_entry.pattern,
-            &params.current_sections,
-        );
+        let suggestions =
+            matcher.suggest_next_section(&pattern_entry.pattern, &params.current_sections);
 
         let json: Vec<serde_json::Value> = suggestions
             .iter()
@@ -1064,7 +1066,9 @@ impl DraftkitServer {
 
         for section in &recipe.sections {
             // Search for components matching this section type
-            let search_results = self.component_reader.search(Framework::React, &section.section_type);
+            let search_results = self
+                .component_reader
+                .search(Framework::React, &section.section_type);
 
             // Take the first few matching components' previews
             let previews: Vec<serde_json::Value> = search_results
@@ -1382,7 +1386,14 @@ impl DraftkitServer {
 
         // Fetch from TailwindPlus
         let result = fetcher
-            .fetch_component(uuid, category, subcategory, sub_subcategory, framework, mode)
+            .fetch_component(
+                uuid,
+                category,
+                subcategory,
+                sub_subcategory,
+                framework,
+                mode,
+            )
             .await;
 
         // Clear spinner before returning

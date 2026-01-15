@@ -6,10 +6,10 @@
 //! - Tailwind CSS documentation (v3, v4)
 //! - TailwindPlus Elements documentation
 
+use std::borrow::Cow;
+
 use crate::catalyst::{self, CatalystComponent, CatalystLanguage};
-use crate::components::{
-    ComponentReader, ComponentRecord, Framework, Mode, NdjsonSnippet, TailwindVersion,
-};
+use crate::components::{ComponentReader, ComponentRecord, Framework, Mode, TailwindVersion};
 use crate::docs::{self, TopicInfo};
 use crate::elements::{self, ElementInfo};
 
@@ -53,17 +53,15 @@ impl Catalog {
         self.components.find_by_id(framework, id)
     }
 
-    /// Get a specific code snippet from a component.
+    /// Check if a component has a specific mode variant available.
+    ///
+    /// Note: This only checks metadata. Source code must be fetched on-demand
+    /// via authenticated TailwindPlus session.
     #[must_use]
-    pub fn get_component_snippet(
-        &self,
-        framework: Framework,
-        id: &str,
-        mode: Mode,
-    ) -> Option<&'static NdjsonSnippet> {
+    pub fn has_component_mode(&self, framework: Framework, id: &str, mode: Mode) -> bool {
         self.components
             .find_by_id(framework, id)
-            .and_then(|c| c.get_snippet(mode))
+            .is_some_and(|c| c.has_mode(mode))
     }
 
     /// Get all components for a framework.
@@ -103,22 +101,17 @@ impl Catalog {
 
     /// Get source code for a Catalyst component.
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)] // Not const when embedded-data is enabled
     pub fn get_catalyst_component(
         &self,
         name: &str,
         language: CatalystLanguage,
-    ) -> Option<&'static str> {
+    ) -> Option<Cow<'static, str>> {
         catalyst::get_component(name, language)
     }
 
     /// Get all Catalyst components for a language.
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)] // Not const when embedded-data is enabled
-    pub fn get_all_catalyst_components(
-        &self,
-        language: CatalystLanguage,
-    ) -> Vec<(&'static str, &'static str)> {
+    pub fn get_all_catalyst_components(&self, language: CatalystLanguage) -> Vec<(String, String)> {
         catalyst::get_all_components(language)
     }
 
@@ -128,8 +121,11 @@ impl Catalog {
 
     /// Get documentation content for a topic.
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)] // Not const when embedded-data is enabled
-    pub fn get_tailwind_docs(&self, topic: &str, version: TailwindVersion) -> Option<&'static str> {
+    pub fn get_tailwind_docs(
+        &self,
+        topic: &str,
+        version: TailwindVersion,
+    ) -> Option<Cow<'static, str>> {
         docs::get_docs(topic, version)
     }
 
@@ -176,13 +172,13 @@ impl Catalog {
 
     /// Get the Elements overview documentation.
     #[must_use]
-    pub fn get_elements_overview(&self) -> &'static str {
+    pub fn get_elements_overview(&self) -> String {
         elements::get_overview()
     }
 
     /// Get full Elements documentation.
     #[must_use]
-    pub fn get_full_elements_docs(&self) -> &'static str {
+    pub fn get_full_elements_docs(&self) -> Cow<'static, str> {
         elements::get_full_docs()
     }
 }

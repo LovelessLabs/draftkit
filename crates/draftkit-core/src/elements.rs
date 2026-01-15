@@ -1,20 +1,46 @@
-//! TailwindPlus Elements documentation parser.
+//! TailwindPlus Elements documentation with runtime-first, embedded-fallback loading.
+//!
+//! Loading priority:
+//! 1. Runtime data directory (`~/.local/share/draftkit/elements/llms.txt`)
+//! 2. Embedded data (compile-time via `include_str!`)
 //!
 //! Elements is a JavaScript UI component library with 9 interactive Web Components.
-//! Documentation is embedded at compile time from cache/docs/elements-llms.txt.
-//!
-//! When the `embedded-data` feature is disabled, this module provides stub implementations
-//! that return empty results. This allows CI to build without the cache directory present.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
+use std::sync::OnceLock;
+
+use crate::data_dir::runtime_elements_dir;
 
 /// Embedded Elements documentation
 #[cfg(feature = "embedded-data")]
-static ELEMENTS_DOC: &str = include_str!("../cache/docs/elements-llms.txt");
+static EMBEDDED_ELEMENTS_DOC: &str = include_str!("../cache/docs/elements-llms.txt");
 
 /// Stub documentation when no embedded data
 #[cfg(not(feature = "embedded-data"))]
-static ELEMENTS_DOC: &str = "";
+static EMBEDDED_ELEMENTS_DOC: &str = "";
+
+/// Cached Elements documentation (runtime or embedded)
+static ELEMENTS_DOC: OnceLock<Cow<'static, str>> = OnceLock::new();
+
+/// Try to load elements doc from runtime directory.
+fn load_runtime_elements_doc() -> Option<String> {
+    let dir = runtime_elements_dir()?;
+    let path = dir.join("llms.txt");
+    std::fs::read_to_string(path.as_std_path()).ok()
+}
+
+/// Get the Elements documentation, trying runtime first then embedded.
+fn get_elements_doc() -> &'static Cow<'static, str> {
+    ELEMENTS_DOC.get_or_init(|| {
+        // Try runtime first
+        if let Some(doc) = load_runtime_elements_doc() {
+            return Cow::Owned(doc);
+        }
+        // Fall back to embedded
+        Cow::Borrowed(EMBEDDED_ELEMENTS_DOC)
+    })
+}
 
 /// Element component names (lowercase for matching)
 const ELEMENT_NAMES: &[&str] = &[
@@ -105,11 +131,11 @@ pub fn list_elements() -> Vec<ElementInfo> {
 
 /// Get the overview section (installation, browser support, etc.)
 #[must_use]
-pub fn get_overview() -> &'static str {
+pub fn get_overview() -> String {
+    let doc = get_elements_doc();
     // Find where the first component section starts (## Autocomplete)
-    ELEMENTS_DOC
-        .find("\n## Autocomplete")
-        .map_or(ELEMENTS_DOC, |pos| &ELEMENTS_DOC[..pos])
+    doc.find("\n## Autocomplete")
+        .map_or_else(|| doc.to_string(), |pos| doc[..pos].to_string())
 }
 
 /// Parse element name from various formats
@@ -132,6 +158,7 @@ fn normalize_name(name: &str) -> Option<&'static str> {
 #[must_use]
 pub fn get_element_docs(name: &str) -> Option<String> {
     let normalized = normalize_name(name)?;
+    let doc = get_elements_doc();
 
     // Build section header patterns
     let section_headers: HashMap<&str, &str> = [
@@ -151,22 +178,22 @@ pub fn get_element_docs(name: &str) -> Option<String> {
     let header = section_headers.get(normalized)?;
 
     // Find the start of this section
-    let start = ELEMENTS_DOC.find(header)?;
+    let start = doc.find(header)?;
 
     // Find the end (next ## section or end of file)
-    let content_after_header = &ELEMENTS_DOC[start + header.len()..];
+    let content_after_header = &doc[start + header.len()..];
     let end = content_after_header
         .find("\n## ")
         .map(|pos| start + header.len() + pos)
-        .unwrap_or(ELEMENTS_DOC.len());
+        .unwrap_or(doc.len());
 
-    Some(ELEMENTS_DOC[start..end].to_string())
+    Some(doc[start..end].to_string())
 }
 
 /// Get the full Elements documentation
 #[must_use]
-pub fn get_full_docs() -> &'static str {
-    ELEMENTS_DOC
+pub fn get_full_docs() -> Cow<'static, str> {
+    get_elements_doc().clone()
 }
 
 #[cfg(test)]

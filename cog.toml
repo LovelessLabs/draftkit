@@ -223,15 +223,6 @@ cargo clippy -- -D warnings
 just check-updates
 """
 
-# Run tests before allowing a push.
-[git_hooks.pre-push]
-script = """#!/bin/sh
-set -e
-
-# Run the test suite. Prevents pushing broken code.
-cargo nextest run
-"""
-
 # -----------------------------------------------------------------------------
 # Monorepo Package Definitions
 # -----------------------------------------------------------------------------

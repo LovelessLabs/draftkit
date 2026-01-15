@@ -85,7 +85,7 @@ post_bump_hooks = [
   # Push the version commit and tag to remote.
   # This triggers CI/CD workflows (e.g., cargo-dist for releases).
   "git push",
-  "git push origin v{{version}}"
+  "git push origin v{{version}}",
 
   # Create a draft GitHub release with changelog excerpt.
   # The awk command extracts the section for this version from CHANGELOG.md:
@@ -94,7 +94,7 @@ post_bump_hooks = [
   # The release is created as draft so you can review before publishing.
   # Publishing the release triggers cargo-dist to build and attach binaries.
   '''
-  awk '/^## \[\]/{flag=1; next} /^## \[/{flag=0} flag' CHANGELOG.md > /tmp/release-notes.md
+  awk "/^## \[\]/{flag=1; next} /^## \[/{flag=0} flag" CHANGELOG.md > /tmp/release-notes.md
   gh release create v --draft --title "v" -F /tmp/release-notes.md
   ''',
 ]

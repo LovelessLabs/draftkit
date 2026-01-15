@@ -229,8 +229,7 @@ script = """#!/bin/sh
 set -e
 
 # Run the test suite. Prevents pushing broken code.
-# Consider using `cargo nextest run` for faster parallel tests.
-cargo test
+cargo nextest run
 """
 
 # -----------------------------------------------------------------------------

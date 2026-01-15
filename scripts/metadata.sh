@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
-# metadata.sh - Extract component metadata from NDJSON files
+# metadata.sh - Extract component metadata and strip source code from NDJSON files
 #
 # Usage: ./metadata.sh <input-dir>
 #
-# Processes all *-v*.ndjson files in the input directory, enriching each
-# component with extracted metadata (dependencies, tokens, tailwind features).
+# Processes all *-v*.ndjson files in the input directory:
+# 1. Extracts metadata from source code (dependencies, tokens, tailwind features)
+# 2. STRIPS source code from output (only metadata-safe fields remain)
 #
-# The script modifies files in-place, adding a "meta" field to each JSON line.
+# Output format (no source code - safe to distribute):
+#   - id, uuid, name, version, category, subcategory, sub_subcategory
+#   - has_light, has_dark, has_system (availability flags)
+#   - preview_light, preview_dark, preview_system (preview image URLs)
+#   - meta: { dependencies, tokens, tailwind } (extracted analysis)
+#
+# The script modifies files in-place. Source code is never written to output.
 
 set -euo pipefail
 
@@ -150,37 +157,49 @@ extract_v4_features() {
 
 # Process a single component JSON object
 # Input: JSON object (stdin)
-# Output: JSON object with meta field added
+# Output: JSON object with meta field added and source code STRIPPED
+#
+# The output contains:
+#   - Component identifiers (id, uuid, name, category, etc.)
+#   - Availability flags (has_light, has_dark, has_system)
+#   - Preview URLs (preview_light, preview_dark, preview_system)
+#   - Extracted metadata (dependencies, tokens, tailwind features)
+#
+# Source code is NOT included - fetch on-demand via authenticated session.
 process_component() {
   local json
   json=$(cat)
 
-  # Extract code from light mode (primary source)
+  # Extract code from light mode (primary source for metadata extraction)
   local code
   code=$(echo "$json" | jq -r '.light.code // .dark.code // .system.code // ""')
 
+  # Extract metadata from code (or use empty defaults)
+  local packages icons colors spacing typography v4_features v3_compatible
   if [[ -z "$code" || "$code" == "null" ]]; then
-    # No code available, return original with empty meta
-    echo "$json" | jq -c '. + {"meta": {"dependencies": {"packages": [], "icons": []}, "tokens": {"colors": [], "spacing": [], "typography": []}, "tailwind": {"v4_only": [], "v3_compatible": true}}}'
-    return
+    packages='[]'
+    icons='[]'
+    colors='[]'
+    spacing='[]'
+    typography='[]'
+    v4_features='[]'
+    v3_compatible="true"
+  else
+    packages=$(echo "$code" | extract_packages 2>/dev/null || echo '[]')
+    icons=$(echo "$code" | extract_icons 2>/dev/null || echo '[]')
+    colors=$(echo "$code" | extract_colors 2>/dev/null || echo '[]')
+    spacing=$(echo "$code" | extract_spacing 2>/dev/null || echo '[]')
+    typography=$(echo "$code" | extract_typography 2>/dev/null || echo '[]')
+    v4_features=$(echo "$code" | extract_v4_features 2>/dev/null || echo '[]')
+
+    # Determine v3 compatibility (no v4-only features)
+    v3_compatible="true"
+    if [[ "$v4_features" != "[]" ]]; then
+      v3_compatible="false"
+    fi
   fi
 
-  # Extract metadata
-  local packages icons colors spacing typography v4_features
-  packages=$(echo "$code" | extract_packages 2>/dev/null || echo '[]')
-  icons=$(echo "$code" | extract_icons 2>/dev/null || echo '[]')
-  colors=$(echo "$code" | extract_colors 2>/dev/null || echo '[]')
-  spacing=$(echo "$code" | extract_spacing 2>/dev/null || echo '[]')
-  typography=$(echo "$code" | extract_typography 2>/dev/null || echo '[]')
-  v4_features=$(echo "$code" | extract_v4_features 2>/dev/null || echo '[]')
-
-  # Determine v3 compatibility (no v4-only features)
-  local v3_compatible="true"
-  if [[ "$v4_features" != "[]" ]]; then
-    v3_compatible="false"
-  fi
-
-  # Build meta object and merge with original (use -c for compact single-line output)
+  # Build metadata-only output: strip code, keep availability flags + previews
   echo "$json" | jq -c --argjson packages "$packages" \
                        --argjson icons "$icons" \
                        --argjson colors "$colors" \
@@ -188,23 +207,36 @@ process_component() {
                        --argjson typography "$typography" \
                        --argjson v4_only "$v4_features" \
                        --argjson v3_compat "$v3_compatible" \
-    '. + {
-      "meta": {
-        "dependencies": {
-          "packages": $packages,
-          "icons": $icons
+    '{
+      id,
+      uuid,
+      name,
+      version,
+      category,
+      subcategory,
+      sub_subcategory,
+      has_light: (.light != null),
+      has_dark: (.dark != null),
+      has_system: (.system != null),
+      preview_light: .light.preview,
+      preview_dark: .dark.preview,
+      preview_system: .system.preview,
+      meta: {
+        dependencies: {
+          packages: $packages,
+          icons: $icons
         },
-        "tokens": {
-          "colors": $colors,
-          "spacing": $spacing,
-          "typography": $typography
+        tokens: {
+          colors: $colors,
+          spacing: $spacing,
+          typography: $typography
         },
-        "tailwind": {
-          "v4_only": $v4_only,
-          "v3_compatible": $v3_compat
+        tailwind: {
+          v4_only: $v4_only,
+          v3_compatible: $v3_compat
         }
       }
-    }'
+    } | with_entries(select(.value != null))'
 }
 
 # Process all NDJSON files in the input directory

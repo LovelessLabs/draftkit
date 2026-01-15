@@ -13,8 +13,8 @@ templates, and supporting assets in a single run.
 # Basic usage - v4 only (outputs to cache/YYYY-MM-DD/)
 ./scripts/tailwindplus-collector.sh
 
-# Include Tailwind CSS v3 formats (doubles download time)
-./scripts/tailwindplus-collector.sh --with-v3
+# Don't include Tailwind CSS v3 formats (reduces download time)
+./scripts/tailwindplus-collector.sh --v4-only
 
 # With suffix for multiple pulls per day (outputs to cache/YYYY-MM-DD-test/)
 ./scripts/tailwindplus-collector.sh test
@@ -23,13 +23,13 @@ templates, and supporting assets in a single run.
 ./scripts/tailwindplus-collector.sh --resume
 
 # Combine flags
-./scripts/tailwindplus-collector.sh --with-v3 --resume test
+./scripts/tailwindplus-collector.sh --v4-only --resume test
 ```
 
 **Options:**
 | Flag | Description |
 |------|-------------|
-| `--with-v3` | Include Tailwind CSS v3 formats (18 formats instead of 9) |
+| `--v4-only` | Don't include Tailwind CSS v3 formats (9 formats instead of 18) |
 | `--resume` | Skip already-completed steps (uses `.progress` file) |
 | `[suffix]` | Optional label appended to date directory (on days you're downloading more than once) |
 
@@ -140,17 +140,6 @@ cache/.2026-01-12    # Contains the suffix (or empty for default)
 
 This allows scripts to find the most recent pull for a given date.
 
-**Performance:**
-
-Default (v4 only):
-- ~90 seconds for full download using HTTP/2 multiplexing
-- ~837 files downloaded (93 subcategories × 9 formats)
-- ~400MB raw data, ~200MB NDJSON
-
-With `--with-v3`:
-- ~3 minutes for full download
-- ~1674 files downloaded (93 subcategories × 18 formats)
-- ~800MB raw data, ~400MB NDJSON
 
 **Resumability:**
 

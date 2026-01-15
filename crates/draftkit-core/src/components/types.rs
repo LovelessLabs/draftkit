@@ -44,6 +44,16 @@ impl Framework {
             _ => None,
         }
     }
+
+    /// Get the file extension for this framework
+    #[must_use]
+    pub const fn file_extension(&self) -> &'static str {
+        match self {
+            Self::Html => "html",
+            Self::React => "jsx",
+            Self::Vue => "vue",
+        }
+    }
 }
 
 impl std::fmt::Display for Framework {
@@ -287,6 +297,187 @@ const fn default_true() -> bool {
     true
 }
 
+// ============================================================================
+// Component Intelligence (for pattern matching and coherence checking)
+// ============================================================================
+
+/// Design DNA: Visual characteristics that define component aesthetic.
+///
+/// These scores enable coherence checking between components—pairing a
+/// minimal header with a heavy, gradient-filled hero would score poorly.
+/// Scores are normalized 0.0-1.0 for easy variance calculations.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct StyleProfile {
+    /// Visual weight: 0.0 = minimal/flat, 1.0 = heavy (shadows, gradients, borders)
+    /// Derived from: shadow-*, gradient-*, ring-*, border-* class counts
+    #[serde(default)]
+    pub visual_weight: f32,
+
+    /// Formality: 0.0 = playful/casual, 1.0 = corporate/serious
+    /// Derived from: color palette (grays = formal), typography choices
+    #[serde(default)]
+    pub formality: f32,
+
+    /// Color intensity: 0.0 = monochrome/muted, 1.0 = vibrant/colorful
+    /// Derived from: unique color token count, saturation levels
+    #[serde(default)]
+    pub color_intensity: f32,
+
+    /// Spacing density: 0.0 = tight/compact, 1.0 = spacious/airy
+    /// Derived from: average padding/margin/gap values
+    #[serde(default)]
+    pub spacing_density: f32,
+
+    /// Typography scale category
+    #[serde(default)]
+    pub typography_scale: TypographyScale,
+}
+
+/// Typography scale classification
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum TypographyScale {
+    /// Small text emphasis (text-xs, text-sm dominant)
+    Small,
+    /// Balanced text sizes
+    #[default]
+    Medium,
+    /// Large text emphasis (text-xl+ dominant)
+    Large,
+}
+
+impl TypographyScale {
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Self::Small => "small",
+            Self::Medium => "medium",
+            Self::Large => "large",
+        }
+    }
+}
+
+impl std::fmt::Display for TypographyScale {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+/// Typical page position for a component section
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+pub enum PagePosition {
+    /// Navigation/header area
+    Header,
+    /// Primary above-fold content
+    Hero,
+    /// Feature showcase sections
+    Feature,
+    /// Social proof (logos, testimonials)
+    SocialProof,
+    /// Pricing tables
+    Pricing,
+    /// Individual testimonials
+    Testimonial,
+    /// FAQ sections
+    Faq,
+    /// Call-to-action blocks
+    Cta,
+    /// Page footer
+    Footer,
+    /// Form sections
+    Form,
+    /// Content/article body
+    Content,
+    /// Unknown or generic section
+    Other,
+}
+
+impl PagePosition {
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Self::Header => "header",
+            Self::Hero => "hero",
+            Self::Feature => "feature",
+            Self::SocialProof => "social-proof",
+            Self::Pricing => "pricing",
+            Self::Testimonial => "testimonial",
+            Self::Faq => "faq",
+            Self::Cta => "cta",
+            Self::Footer => "footer",
+            Self::Form => "form",
+            Self::Content => "content",
+            Self::Other => "other",
+        }
+    }
+}
+
+impl std::fmt::Display for PagePosition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+/// Usage context: Where and how a component is typically used.
+///
+/// This enables the pattern matcher to suggest appropriate next sections
+/// and validate page flow (e.g., footer should be last).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct UsageContext {
+    /// Page archetypes this component suits (e.g., "landing", "saas", "marketing")
+    #[serde(default)]
+    pub page_types: Vec<String>,
+
+    /// Typical position in page layout
+    #[serde(default)]
+    pub position: Option<PagePosition>,
+
+    /// Usage frequency: 0.0 = rare, 1.0 = very common
+    /// Helps weight suggestions toward popular choices
+    #[serde(default)]
+    pub frequency: f32,
+
+    /// Component IDs that typically follow this one
+    #[serde(default)]
+    pub followed_by: Vec<String>,
+
+    /// Component IDs that typically precede this one
+    #[serde(default)]
+    pub preceded_by: Vec<String>,
+}
+
+/// Complete intelligence data for a component.
+///
+/// Combines identification, extracted metadata, and design intelligence
+/// for use in pattern matching and coherence validation.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct ComponentIntelligence {
+    /// Component identifier (matches ComponentMeta.id)
+    pub id: String,
+
+    /// Component category path (e.g., ["Marketing", "Hero Sections"])
+    #[serde(default)]
+    pub category: Vec<String>,
+
+    /// Extracted code metadata (dependencies, tokens, compatibility)
+    #[serde(default)]
+    pub extracted: ExtractedMeta,
+
+    /// Design DNA for coherence checking
+    #[serde(default)]
+    pub style: StyleProfile,
+
+    /// Usage patterns for flow validation
+    #[serde(default)]
+    pub usage: UsageContext,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -378,5 +569,64 @@ mod tests {
 
         let parsed: TailwindVersion = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed, TailwindVersion::V4);
+    }
+
+    #[test]
+    fn style_profile_defaults() {
+        let profile = StyleProfile::default();
+        assert_eq!(profile.visual_weight, 0.0);
+        assert_eq!(profile.formality, 0.0);
+        assert_eq!(profile.color_intensity, 0.0);
+        assert_eq!(profile.spacing_density, 0.0);
+        assert_eq!(profile.typography_scale, TypographyScale::Medium);
+    }
+
+    #[test]
+    fn typography_scale_serde() {
+        let json = serde_json::to_string(&TypographyScale::Large).unwrap();
+        assert_eq!(json, "\"large\"");
+
+        let parsed: TypographyScale = serde_json::from_str("\"small\"").unwrap();
+        assert_eq!(parsed, TypographyScale::Small);
+    }
+
+    #[test]
+    fn page_position_serde() {
+        let json = serde_json::to_string(&PagePosition::SocialProof).unwrap();
+        assert_eq!(json, "\"social-proof\"");
+
+        let parsed: PagePosition = serde_json::from_str("\"hero\"").unwrap();
+        assert_eq!(parsed, PagePosition::Hero);
+    }
+
+    #[test]
+    fn component_intelligence_serde_roundtrip() {
+        let intel = ComponentIntelligence {
+            id: "hero-split-screenshot".to_string(),
+            category: vec!["Marketing".to_string(), "Hero Sections".to_string()],
+            extracted: ExtractedMeta::default(),
+            style: StyleProfile {
+                visual_weight: 0.6,
+                formality: 0.8,
+                color_intensity: 0.4,
+                spacing_density: 0.7,
+                typography_scale: TypographyScale::Large,
+            },
+            usage: UsageContext {
+                page_types: vec!["saas".to_string(), "landing".to_string()],
+                position: Some(PagePosition::Hero),
+                frequency: 0.85,
+                followed_by: vec!["feature-grid".to_string()],
+                preceded_by: vec!["header-simple".to_string()],
+            },
+        };
+
+        let json = serde_json::to_string(&intel).unwrap();
+        let parsed: ComponentIntelligence = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.id, "hero-split-screenshot");
+        assert_eq!(parsed.style.visual_weight, 0.6);
+        assert_eq!(parsed.usage.position, Some(PagePosition::Hero));
+        assert_eq!(parsed.usage.followed_by, vec!["feature-grid"]);
     }
 }

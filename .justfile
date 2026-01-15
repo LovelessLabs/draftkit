@@ -47,13 +47,13 @@ bench-gungraun:
 bench-cli:
   ./scripts/bench-cli.sh
 
-# Collect TailwindPlus data (v4 only by default)
+# Collect TailwindPlus data
 # Examples:
-#   just collect              # v4 only → cache/YYYY-MM-DD/
+#   just collect              # v3 & v4 → cache/YYYY-MM-DD/
 #   just collect foo          # with suffix → cache/YYYY-MM-DD-foo/
-#   just collect --with-v3    # include v3 formats
+#   just collect --v4-only    # don't include v3 formats
 #   just collect --resume     # resume after failure
-#   just collect --with-v3 --resume foo
+#   just collect --v4-only --resume foo
 collect *ARGS:
   ./scripts/tailwindplus-collector.sh {{ARGS}}
 
@@ -79,6 +79,44 @@ build-release:
 zip:
   git archive --format=zip --output=../draftkit-{{datetime('-%Y-%m-%d_%H%M')}}.zip HEAD
 
-# Check for dependency updates across the workspace (requires cargo-outdated)
-deps:
+# Check for outdated dependencies (root only, no transitive noise)
+outdated:
     cargo outdated --workspace --root-deps-only
+
+# Safe update: respects semver constraints, only touches Cargo.lock
+update:
+    cargo update --workspace --verbose
+
+# Upgrade Cargo.toml to latest compatible versions
+upgrade:
+    cargo upgrade --workspace
+    cargo update --workspace
+
+# The nuclear option: upgrade to latest incompatible versions (breaking changes)
+upgrade-breaking:
+    cargo upgrade --workspace --incompatible
+    cargo update --workspace
+
+# See what WOULD update without doing it
+check-updates:
+    cargo update --workspace --dry-run
+
+# Full refresh: update, test, clippy
+refresh: update
+    cargo test --workspace
+    cargo clippy --workspace -- -D warnings
+
+# Monthly maintenance: upgrade, test everything
+monthly: upgrade
+    cargo test --workspace
+    cargo clippy --workspace -- -D warnings
+    cargo build --workspace --release
+
+# Show why a specific package version is stuck
+[private]
+why pkg:
+    cargo tree -i {{pkg}}
+
+# Update system-level cargo tools
+system-update:
+    cargo install-update -al

@@ -4,20 +4,20 @@
 # Copies: Tailwind CSS v3/v4 documentation from docs/ to cache
 #
 # Usage: tailwindplus-archive.sh [options] [suffix]
-#   --with-v3   Include Tailwind CSS v3 formats (default: v4 only)
+#   --v4-only   Do not include Tailwind CSS v3 formats (default: v3 & v4)
 #   --resume    Resume from last completed step
 #   suffix      Optional label appended to date dir (e.g., "test" → cache/2026-01-12-test)
 set -e
 
 # Parse arguments
-WITH_V3=false
+WITH_V3=true
 RESUME=false
 SUFFIX=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --with-v3)
-      WITH_V3=true
+    --v4-only)
+      WITH_V3=false
       shift
       ;;
     --resume)

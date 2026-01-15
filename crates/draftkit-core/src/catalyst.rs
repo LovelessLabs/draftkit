@@ -1,13 +1,18 @@
-//! Catalyst UI Kit components embedded at compile time.
+//! Catalyst UI Kit components with runtime-first, embedded-fallback loading.
+//!
+//! Loading priority:
+//! 1. Runtime data directory (`~/.local/share/draftkit/kits/catalyst/`)
+//! 2. Embedded data (compile-time via `include_dir!`)
 //!
 //! Catalyst is a collection of atomic React components designed to work with Tailwind CSS.
 //! Components are available in both TypeScript (.tsx) and JavaScript (.jsx) formats.
-//!
-//! When the `embedded-data` feature is disabled, this module provides stub implementations
-//! that return empty results. This allows CI to build without the cache directory present.
+
+use std::borrow::Cow;
 
 #[cfg(feature = "embedded-data")]
 use include_dir::{Dir, include_dir};
+
+use crate::data_dir::runtime_catalyst_dir;
 
 /// Embedded TypeScript Catalyst components
 #[cfg(feature = "embedded-data")]
@@ -69,9 +74,29 @@ pub struct CatalystComponent {
     pub extension: &'static str,
 }
 
-/// List all available Catalyst component names
+/// Try to list component names from runtime directory.
+fn list_runtime_components(language: CatalystLanguage) -> Option<Vec<String>> {
+    let dir = runtime_catalyst_dir(language.as_str())?;
+    let extension = language.extension();
+
+    let mut names = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(dir.as_std_path()) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().is_some_and(|ext| ext == extension) {
+                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                    names.push(stem.to_string());
+                }
+            }
+        }
+    }
+
+    if names.is_empty() { None } else { Some(names) }
+}
+
+/// List component names from embedded directory.
 #[cfg(feature = "embedded-data")]
-pub fn list_components() -> Vec<String> {
+fn list_embedded_components() -> Vec<String> {
     TYPESCRIPT_DIR
         .files()
         .filter_map(|f| {
@@ -83,11 +108,21 @@ pub fn list_components() -> Vec<String> {
         .collect()
 }
 
-/// List all available Catalyst component names (stub when no embedded data)
+/// List component names from embedded directory (stub when no embedded data).
 #[cfg(not(feature = "embedded-data"))]
-#[must_use]
-pub const fn list_components() -> Vec<String> {
+fn list_embedded_components() -> Vec<String> {
     Vec::new()
+}
+
+/// List all available Catalyst component names with runtime-first, embedded-fallback.
+#[must_use]
+pub fn list_components() -> Vec<String> {
+    // Try runtime first (check TypeScript dir as canonical source)
+    if let Some(names) = list_runtime_components(CatalystLanguage::TypeScript) {
+        return names;
+    }
+    // Fall back to embedded
+    list_embedded_components()
 }
 
 /// Get component metadata for all Catalyst components
@@ -112,30 +147,72 @@ pub fn get_component_metadata() -> Vec<CatalystComponent> {
         .collect()
 }
 
-/// Get the source code for a Catalyst component
+/// Try to load component from runtime directory.
+fn load_runtime_component(name: &str, language: CatalystLanguage) -> Option<String> {
+    let dir = runtime_catalyst_dir(language.as_str())?;
+    let extension = language.extension();
+    let path = dir.join(format!("{name}.{extension}"));
+    std::fs::read_to_string(path.as_std_path()).ok()
+}
+
+/// Load component from embedded directory.
 #[cfg(feature = "embedded-data")]
-pub fn get_component(name: &str, language: CatalystLanguage) -> Option<&'static str> {
+fn load_embedded_component(name: &str, language: CatalystLanguage) -> Option<&'static str> {
     let dir = match language {
         CatalystLanguage::TypeScript => &TYPESCRIPT_DIR,
         CatalystLanguage::JavaScript => &JAVASCRIPT_DIR,
     };
-
     let extension = language.extension();
     let filename = format!("{name}.{extension}");
-
     dir.get_file(&filename).and_then(|f| f.contents_utf8())
 }
 
-/// Get the source code for a Catalyst component (stub when no embedded data)
+/// Load component from embedded directory (stub when no embedded data).
 #[cfg(not(feature = "embedded-data"))]
-#[must_use]
-pub const fn get_component(_name: &str, _language: CatalystLanguage) -> Option<&'static str> {
+fn load_embedded_component(_name: &str, _language: CatalystLanguage) -> Option<&'static str> {
     None
 }
 
-/// Get all components as (name, code) pairs for a given language
+/// Get the source code for a Catalyst component with runtime-first, embedded-fallback.
+#[must_use]
+pub fn get_component(name: &str, language: CatalystLanguage) -> Option<Cow<'static, str>> {
+    // Try runtime first
+    if let Some(content) = load_runtime_component(name, language) {
+        return Some(Cow::Owned(content));
+    }
+    // Fall back to embedded
+    load_embedded_component(name, language).map(Cow::Borrowed)
+}
+
+/// Try to load all components from runtime directory.
+fn load_all_runtime_components(language: CatalystLanguage) -> Option<Vec<(String, String)>> {
+    let dir = runtime_catalyst_dir(language.as_str())?;
+    let extension = language.extension();
+
+    let mut components = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(dir.as_std_path()) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().is_some_and(|ext| ext == extension) {
+                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        components.push((stem.to_string(), content));
+                    }
+                }
+            }
+        }
+    }
+
+    if components.is_empty() {
+        None
+    } else {
+        Some(components)
+    }
+}
+
+/// Load all components from embedded directory.
 #[cfg(feature = "embedded-data")]
-pub fn get_all_components(language: CatalystLanguage) -> Vec<(&'static str, &'static str)> {
+fn load_all_embedded_components(language: CatalystLanguage) -> Vec<(String, String)> {
     let dir = match language {
         CatalystLanguage::TypeScript => &TYPESCRIPT_DIR,
         CatalystLanguage::JavaScript => &JAVASCRIPT_DIR,
@@ -143,18 +220,28 @@ pub fn get_all_components(language: CatalystLanguage) -> Vec<(&'static str, &'st
 
     dir.files()
         .filter_map(|f| {
-            let name = f.path().file_stem()?.to_str()?;
-            let content = f.contents_utf8()?;
+            let name = f.path().file_stem()?.to_str()?.to_string();
+            let content = f.contents_utf8()?.to_string();
             Some((name, content))
         })
         .collect()
 }
 
-/// Get all components as (name, code) pairs for a given language (stub when no embedded data)
+/// Load all components from embedded directory (stub when no embedded data).
 #[cfg(not(feature = "embedded-data"))]
-#[must_use]
-pub const fn get_all_components(_language: CatalystLanguage) -> Vec<(&'static str, &'static str)> {
+fn load_all_embedded_components(_language: CatalystLanguage) -> Vec<(String, String)> {
     Vec::new()
+}
+
+/// Get all components as (name, code) pairs for a given language with runtime-first, embedded-fallback.
+#[must_use]
+pub fn get_all_components(language: CatalystLanguage) -> Vec<(String, String)> {
+    // Try runtime first
+    if let Some(components) = load_all_runtime_components(language) {
+        return components;
+    }
+    // Fall back to embedded
+    load_all_embedded_components(language)
 }
 
 /// Component descriptions for Catalyst UI Kit

@@ -1,15 +1,19 @@
-//! Tailwind CSS documentation module.
+//! Tailwind CSS documentation module with runtime-first, embedded-fallback loading.
 //!
-//! Provides embedded documentation for Tailwind CSS v3 and v4.
-//! Documentation is embedded at compile time from cache/docs/tailwind/.
+//! Loading priority:
+//! 1. Runtime data directory (`~/.local/share/draftkit/docs/tailwind/`)
+//! 2. Embedded data (compile-time via `include_dir!`)
 //!
-//! When the `embedded-data` feature is disabled, this module provides stub implementations
-//! that return empty results. This allows CI to build without the cache directory present.
+//! When the `embedded-data` feature is disabled and no runtime data exists,
+//! this module returns empty results.
+
+use std::borrow::Cow;
 
 #[cfg(feature = "embedded-data")]
 use include_dir::{Dir, include_dir};
 
 use crate::components::TailwindVersion;
+use crate::data_dir::runtime_docs_dir;
 
 /// Embedded Tailwind CSS v3 documentation
 #[cfg(feature = "embedded-data")]
@@ -176,7 +180,35 @@ pub static TOPICS: &[TopicInfo] = &[
     },
 ];
 
-/// Get documentation content for a topic
+/// Try to load documentation from runtime data directory.
+fn load_runtime_docs(topic: &str, version: TailwindVersion) -> Option<String> {
+    let version_str = match version {
+        TailwindVersion::V3 => "v3",
+        TailwindVersion::V4 => "v4",
+    };
+    let dir = runtime_docs_dir(version_str)?;
+    let path = dir.join(format!("{topic}.md"));
+    std::fs::read_to_string(path.as_std_path()).ok()
+}
+
+/// Load documentation from embedded data.
+#[cfg(feature = "embedded-data")]
+fn load_embedded_docs(topic: &str, version: TailwindVersion) -> Option<&'static str> {
+    let dir = match version {
+        TailwindVersion::V3 => &V3_DOCS,
+        TailwindVersion::V4 => &V4_DOCS,
+    };
+    let filename = format!("{topic}.md");
+    dir.get_file(&filename).and_then(|f| f.contents_utf8())
+}
+
+/// Load documentation from embedded data (stub when no embedded data).
+#[cfg(not(feature = "embedded-data"))]
+const fn load_embedded_docs(_topic: &str, _version: TailwindVersion) -> Option<&'static str> {
+    None
+}
+
+/// Get documentation content for a topic with runtime-first, embedded-fallback.
 ///
 /// # Arguments
 /// * `topic` - The topic name (without .md extension)
@@ -184,23 +216,14 @@ pub static TOPICS: &[TopicInfo] = &[
 ///
 /// # Returns
 /// The markdown content if found, None otherwise
-#[cfg(feature = "embedded-data")]
 #[must_use]
-pub fn get_docs(topic: &str, version: TailwindVersion) -> Option<&'static str> {
-    let dir = match version {
-        TailwindVersion::V3 => &V3_DOCS,
-        TailwindVersion::V4 => &V4_DOCS,
-    };
-
-    let filename = format!("{topic}.md");
-    dir.get_file(&filename).and_then(|f| f.contents_utf8())
-}
-
-/// Get documentation content for a topic (stub when no embedded data)
-#[cfg(not(feature = "embedded-data"))]
-#[must_use]
-pub const fn get_docs(_topic: &str, _version: TailwindVersion) -> Option<&'static str> {
-    None
+pub fn get_docs(topic: &str, version: TailwindVersion) -> Option<Cow<'static, str>> {
+    // Try runtime first
+    if let Some(content) = load_runtime_docs(topic, version) {
+        return Some(Cow::Owned(content));
+    }
+    // Fall back to embedded
+    load_embedded_docs(topic, version).map(Cow::Borrowed)
 }
 
 /// List all available documentation topics for a given version

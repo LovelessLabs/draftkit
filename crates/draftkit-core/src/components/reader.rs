@@ -1,10 +1,12 @@
-//! NDJSON component reader with compile-time embedded data.
+//! NDJSON component reader with runtime-first, embedded-fallback loading.
+//!
+//! Loading priority:
+//! 1. Runtime data directory (`~/.local/share/draftkit/data/components/`)
+//! 2. Embedded data (compile-time via `include_dir!`)
 //!
 //! Each NDJSON file contains components, one per line.
-//! Files are embedded at compile time via the cache symlink.
-//!
-//! When the `embedded-data` feature is disabled, this module provides stub implementations
-//! that return empty results. This allows CI to build without the cache directory present.
+//! When the `embedded-data` feature is disabled and no runtime data exists,
+//! this module returns empty results.
 
 #[cfg(feature = "embedded-data")]
 use include_dir::{Dir, include_dir};
@@ -13,31 +15,55 @@ use std::collections::HashMap;
 use std::sync::OnceLock;
 
 use super::types::{ExtractedMeta, Framework, Mode};
+use crate::data_dir::runtime_components_dir;
 
 /// Embedded component data directory (via symlink: cache -> ../../cache/current)
 #[cfg(feature = "embedded-data")]
 static COMPONENTS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/cache/data/components");
 
-/// Snippet data from NDJSON
-#[derive(Debug, Clone, Deserialize)]
-pub struct NdjsonSnippet {
-    pub code: String,
-    #[serde(default)]
-    pub preview: Option<String>,
-}
-
-/// Component record from NDJSON line
+/// Component record from NDJSON line (metadata-only format).
+///
+/// This struct represents the embedded/distributed component data which does NOT
+/// include source code (for licensing compliance). Source code is fetched on-demand
+/// via authenticated TailwindPlus session.
+///
+/// Fields:
+/// - Identifiers: id, uuid, name, version
+/// - Hierarchy: category, subcategory, sub_subcategory
+/// - Availability: has_light, has_dark, has_system (which modes exist)
+/// - Previews: preview_light, preview_dark, preview_system (image URLs)
+/// - Analysis: meta (extracted dependencies, tokens, tailwind features)
 #[derive(Debug, Clone, Deserialize)]
 pub struct ComponentRecord {
     pub id: String,
     pub uuid: String,
     pub name: String,
+    #[serde(default)]
+    pub version: Option<String>,
     pub category: String,
     pub subcategory: String,
     pub sub_subcategory: String,
-    pub light: Option<NdjsonSnippet>,
-    pub dark: Option<NdjsonSnippet>,
-    pub system: Option<NdjsonSnippet>,
+
+    /// Whether light mode variant exists (code fetched on-demand)
+    #[serde(default)]
+    pub has_light: bool,
+    /// Whether dark mode variant exists (code fetched on-demand)
+    #[serde(default)]
+    pub has_dark: bool,
+    /// Whether system mode variant exists (code fetched on-demand)
+    #[serde(default)]
+    pub has_system: bool,
+
+    /// Preview image URL for light mode
+    #[serde(default)]
+    pub preview_light: Option<String>,
+    /// Preview image URL for dark mode
+    #[serde(default)]
+    pub preview_dark: Option<String>,
+    /// Preview image URL for system mode
+    #[serde(default)]
+    pub preview_system: Option<String>,
+
     /// Extracted metadata (dependencies, tokens, compatibility).
     /// Populated by `scripts/metadata.sh` during data collection.
     #[serde(default)]
@@ -45,18 +71,28 @@ pub struct ComponentRecord {
 }
 
 impl ComponentRecord {
-    /// Get snippet for a specific mode.
+    /// Check if a specific mode variant is available.
     ///
     /// For `Mode::None` (used by ecommerce components that don't have theme variants),
-    /// falls back to the `light` variant as the base/default styling.
+    /// falls back to checking the `light` variant as the base/default.
     #[must_use]
-    pub const fn get_snippet(&self, mode: Mode) -> Option<&NdjsonSnippet> {
+    pub const fn has_mode(&self, mode: Mode) -> bool {
         match mode {
-            Mode::Light => self.light.as_ref(),
-            Mode::Dark => self.dark.as_ref(),
-            Mode::System => self.system.as_ref(),
+            Mode::Light => self.has_light,
+            Mode::Dark => self.has_dark,
+            Mode::System => self.has_system,
             // Ecommerce components use "none" mode; fall back to light as default
-            Mode::None => self.light.as_ref(),
+            Mode::None => self.has_light,
+        }
+    }
+
+    /// Get preview URL for a specific mode.
+    #[must_use]
+    pub fn preview_url(&self, mode: Mode) -> Option<&str> {
+        match mode {
+            Mode::Light | Mode::None => self.preview_light.as_deref(),
+            Mode::Dark => self.preview_dark.as_deref(),
+            Mode::System => self.preview_system.as_deref(),
         }
     }
 }
@@ -64,34 +100,67 @@ impl ComponentRecord {
 /// Parsed components index, lazily initialized
 static COMPONENTS_INDEX: OnceLock<HashMap<Framework, Vec<ComponentRecord>>> = OnceLock::new();
 
-/// Get or initialize the components index
-#[cfg(feature = "embedded-data")]
-fn get_components() -> &'static HashMap<Framework, Vec<ComponentRecord>> {
-    COMPONENTS_INDEX.get_or_init(|| {
-        let mut index = HashMap::new();
+/// Try to load components from runtime data directory.
+fn load_runtime_components() -> Option<HashMap<Framework, Vec<ComponentRecord>>> {
+    let dir = runtime_components_dir()?;
+    let mut index = HashMap::new();
 
-        for framework in [Framework::React, Framework::Vue, Framework::Html] {
-            let filename = framework.ndjson_filename();
-            if let Some(file) = COMPONENTS_DIR.get_file(filename) {
-                if let Some(contents) = file.contents_utf8() {
-                    let components: Vec<ComponentRecord> = contents
-                        .lines()
-                        .filter(|line| !line.is_empty())
-                        .filter_map(|line| serde_json::from_str(line).ok())
-                        .collect();
-                    index.insert(framework, components);
-                }
+    for framework in [Framework::React, Framework::Vue, Framework::Html] {
+        let filename = framework.ndjson_filename();
+        let path = dir.join(filename);
+        if let Ok(contents) = std::fs::read_to_string(path.as_std_path()) {
+            let components: Vec<ComponentRecord> = contents
+                .lines()
+                .filter(|line| !line.is_empty())
+                .filter_map(|line| serde_json::from_str(line).ok())
+                .collect();
+            if !components.is_empty() {
+                index.insert(framework, components);
             }
         }
+    }
 
-        index
-    })
+    if index.is_empty() { None } else { Some(index) }
 }
 
-/// Get or initialize the components index (stub when no embedded data)
+/// Load components from embedded data.
+#[cfg(feature = "embedded-data")]
+fn load_embedded_components() -> HashMap<Framework, Vec<ComponentRecord>> {
+    let mut index = HashMap::new();
+
+    for framework in [Framework::React, Framework::Vue, Framework::Html] {
+        let filename = framework.ndjson_filename();
+        if let Some(file) = COMPONENTS_DIR.get_file(filename) {
+            if let Some(contents) = file.contents_utf8() {
+                let components: Vec<ComponentRecord> = contents
+                    .lines()
+                    .filter(|line| !line.is_empty())
+                    .filter_map(|line| serde_json::from_str(line).ok())
+                    .collect();
+                index.insert(framework, components);
+            }
+        }
+    }
+
+    index
+}
+
+/// Load components from embedded data (stub when no embedded data).
 #[cfg(not(feature = "embedded-data"))]
+fn load_embedded_components() -> HashMap<Framework, Vec<ComponentRecord>> {
+    HashMap::new()
+}
+
+/// Get or initialize the components index with runtime-first, embedded-fallback.
 fn get_components() -> &'static HashMap<Framework, Vec<ComponentRecord>> {
-    COMPONENTS_INDEX.get_or_init(HashMap::new)
+    COMPONENTS_INDEX.get_or_init(|| {
+        // Try runtime first
+        if let Some(components) = load_runtime_components() {
+            return components;
+        }
+        // Fall back to embedded
+        load_embedded_components()
+    })
 }
 
 /// Component reader using embedded NDJSON data
@@ -283,32 +352,63 @@ mod tests {
     }
 
     #[test]
-    fn test_component_record_get_snippet() {
+    fn test_component_record_has_mode() {
         let record = ComponentRecord {
             id: "test".to_string(),
             uuid: "uuid".to_string(),
             name: "Test".to_string(),
+            version: Some("v4".to_string()),
             category: "UI".to_string(),
             subcategory: "Forms".to_string(),
             sub_subcategory: "Inputs".to_string(),
-            light: Some(NdjsonSnippet {
-                code: "light code".to_string(),
-                preview: None,
-            }),
-            dark: Some(NdjsonSnippet {
-                code: "dark code".to_string(),
-                preview: Some("preview".to_string()),
-            }),
-            system: None,
+            has_light: true,
+            has_dark: true,
+            has_system: false,
+            preview_light: None,
+            preview_dark: Some("https://example.com/preview.png".to_string()),
+            preview_system: None,
             meta: None,
         };
 
-        assert!(record.get_snippet(Mode::Light).is_some());
-        assert_eq!(record.get_snippet(Mode::Light).unwrap().code, "light code");
-        assert!(record.get_snippet(Mode::Dark).is_some());
-        assert!(record.get_snippet(Mode::System).is_none());
+        assert!(record.has_mode(Mode::Light));
+        assert!(record.has_mode(Mode::Dark));
+        assert!(!record.has_mode(Mode::System));
         // Mode::None falls back to light for ecommerce components
-        assert!(record.get_snippet(Mode::None).is_some());
-        assert_eq!(record.get_snippet(Mode::None).unwrap().code, "light code");
+        assert!(record.has_mode(Mode::None));
+    }
+
+    #[test]
+    fn test_component_record_preview_url() {
+        let record = ComponentRecord {
+            id: "test".to_string(),
+            uuid: "uuid".to_string(),
+            name: "Test".to_string(),
+            version: Some("v4".to_string()),
+            category: "UI".to_string(),
+            subcategory: "Forms".to_string(),
+            sub_subcategory: "Inputs".to_string(),
+            has_light: true,
+            has_dark: true,
+            has_system: false,
+            preview_light: Some("https://example.com/light.png".to_string()),
+            preview_dark: Some("https://example.com/dark.png".to_string()),
+            preview_system: None,
+            meta: None,
+        };
+
+        assert_eq!(
+            record.preview_url(Mode::Light),
+            Some("https://example.com/light.png")
+        );
+        assert_eq!(
+            record.preview_url(Mode::Dark),
+            Some("https://example.com/dark.png")
+        );
+        assert_eq!(record.preview_url(Mode::System), None);
+        // Mode::None falls back to light
+        assert_eq!(
+            record.preview_url(Mode::None),
+            Some("https://example.com/light.png")
+        );
     }
 }

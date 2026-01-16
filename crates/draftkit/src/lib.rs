@@ -46,6 +46,8 @@ pub enum Commands {
     Cache(commands::cache::CacheArgs),
     /// Show package information
     Info(commands::info::InfoArgs),
+    /// Manage patterns and presets
+    Presets(commands::presets::PresetsArgs),
     /// Run the MCP server
     Serve(commands::serve::ServeArgs),
 }

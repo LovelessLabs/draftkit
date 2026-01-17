@@ -15,6 +15,7 @@ pub mod intelligence;
 pub mod manifest;
 pub mod patterns;
 pub mod preset;
+pub mod scaffold;
 
 pub use catalog::Catalog;
 pub use catalyst::{
@@ -34,4 +35,8 @@ pub use error::{ConfigError, ConfigResult};
 pub use manifest::{
     BuildInfo, Manifest, ManifestCounts, ManifestVersions, TemplateInfo, get_manifest,
     manifest_source,
+};
+pub use scaffold::{
+    FrameworkTarget, GenerateError, GenerateOptions, GeneratedPage, PackageManager, PageGenerator,
+    ProjectConfig, SlotValue, TemplateEngine, TemplateError,
 };

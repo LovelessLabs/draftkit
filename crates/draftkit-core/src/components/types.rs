@@ -108,10 +108,11 @@ impl std::fmt::Display for TailwindVersion {
 }
 
 /// Theme mode for component styling
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum Mode {
+    #[default]
     Light,
     Dark,
     System,

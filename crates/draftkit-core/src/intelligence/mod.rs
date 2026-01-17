@@ -43,11 +43,13 @@
 //! ```
 
 mod coherence;
+mod component_matcher;
 mod matcher;
 
 pub use coherence::{
     CoherenceChecker, CoherenceIssue, CompatibilityScore, IssueCategory, PageCoherence,
 };
+pub use component_matcher::{ComponentMatcher, ComponentRecommendation};
 pub use matcher::{
     PatternMatcher, Recipe, RecipeOptions, RecipeSection, SectionSuggestion, StylePreference,
 };

@@ -164,7 +164,7 @@ fn get_components() -> &'static HashMap<Framework, Vec<ComponentRecord>> {
 }
 
 /// Component reader using embedded NDJSON data
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ComponentReader;
 
 impl ComponentReader {

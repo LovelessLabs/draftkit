@@ -44,8 +44,12 @@ pub enum Commands {
     Auth(commands::auth::AuthArgs),
     /// Manage the local component cache
     Cache(commands::cache::CacheArgs),
+    /// Generate a page from patterns
+    Generate(commands::generate::GenerateArgs),
     /// Show package information
     Info(commands::info::InfoArgs),
+    /// Initialize a new project
+    Init(commands::init::InitArgs),
     /// Manage patterns and presets
     Presets(commands::presets::PresetsArgs),
     /// Run the MCP server

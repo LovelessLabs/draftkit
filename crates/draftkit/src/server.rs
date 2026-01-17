@@ -18,7 +18,9 @@ use tokio::sync::Mutex;
 use draftkit_core::catalyst::{self, CatalystLanguage};
 use draftkit_core::components::TailwindVersion;
 use draftkit_core::fetch::{ComponentFetcher, FetchError};
-use draftkit_core::intelligence::{PatternMatcher, RecipeOptions, StylePreference};
+use draftkit_core::intelligence::{
+    ComponentMatcher, PatternMatcher, RecipeOptions, StylePreference,
+};
 use draftkit_core::patterns::PatternLoader;
 use draftkit_core::{ComponentReader, Framework, Mode, cache, docs, elements};
 
@@ -929,16 +931,39 @@ impl DraftkitServer {
         // Generate the recipe
         let recipe = matcher.generate_recipe(&pattern_entry.pattern, &opts);
 
-        // Build response
+        // Create component matcher for recommendations
+        let component_matcher = ComponentMatcher::react();
+
+        // Build response with component recommendations
         let sections: Vec<serde_json::Value> = recipe
             .sections
             .iter()
             .map(|s| {
+                // Get recommended components for this section
+                let recommendations = component_matcher.match_section(
+                    &s.section_type,
+                    &s.variant_id,
+                    3, // Top 3 recommendations
+                );
+
+                let recommended: Vec<serde_json::Value> = recommendations
+                    .iter()
+                    .map(|r| {
+                        serde_json::json!({
+                            "id": r.id,
+                            "name": r.name,
+                            "confidence": r.confidence,
+                            "preview_url": r.preview_url
+                        })
+                    })
+                    .collect();
+
                 serde_json::json!({
                     "section_type": s.section_type,
                     "variant_id": s.variant_id,
                     "position": s.position,
-                    "slots": s.slots
+                    "slots": s.slots,
+                    "recommended_components": recommended
                 })
             })
             .collect();

@@ -71,7 +71,7 @@ benchmark name="coherence_check_page" module="intelligence" return="draftkit_cor
 let checker = draftkit_core::intelligence::CoherenceChecker::new();
 let profiles: Vec<draftkit_core::components::StyleProfile> = (0..5).map(|i| {
     draftkit_core::components::StyleProfile {
-        visual_weight: 0.3 + (i as f32 * 0.05),
+        visual_weight: (i as f32).mul_add(0.05, 0.3),
         formality: 0.7,
         color_intensity: 0.4,
         spacing_density: 0.6,

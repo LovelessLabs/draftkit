@@ -38,7 +38,11 @@ async fn main() -> anyhow::Result<()> {
     let result = match cli.command {
         Commands::Auth(args) => commands::auth::cmd_auth(args, &styler).await,
         Commands::Cache(args) => span.in_scope(|| commands::cache::cmd_cache(args, color_mode)),
+        Commands::Generate(args) => {
+            span.in_scope(|| commands::generate::cmd_generate(args, &styler))
+        }
         Commands::Info(args) => span.in_scope(|| commands::info::cmd_info(args)),
+        Commands::Init(args) => span.in_scope(|| commands::init::cmd_init(args, &styler)),
         Commands::Presets(args) => span.in_scope(|| commands::presets::cmd_presets(args, &styler)),
         Commands::Serve(args) => {
             // Serve command runs async and needs different observability setup

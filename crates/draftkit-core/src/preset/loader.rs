@@ -170,7 +170,7 @@ impl PresetLoader {
 
     /// Check if any presets are active.
     #[must_use]
-    pub fn has_active_presets(&self) -> bool {
+    pub const fn has_active_presets(&self) -> bool {
         !self.active_stack.is_empty()
     }
 
@@ -195,14 +195,13 @@ impl PresetLoader {
 
     /// Resolve style overrides for a preset, following inheritance chain.
     fn resolve_style_overrides(&self, preset: &Preset) -> StyleOverrides {
-        let mut resolved = StyleOverrides::default();
-
-        // First, apply parent's overrides if we extend something
-        if let Some(ref parent_name) = preset.extends {
-            if let Some(parent) = self.presets.get(parent_name) {
-                resolved = self.resolve_style_overrides(&parent.preset);
-            }
-        }
+        let mut resolved = if let Some(ref parent_name) = preset.extends
+            && let Some(parent) = self.presets.get(parent_name)
+        {
+            self.resolve_style_overrides(&parent.preset)
+        } else {
+            StyleOverrides::default()
+        };
 
         // Then apply our own overrides on top
         merge_style_overrides(&mut resolved, &preset.style_overrides);
@@ -232,14 +231,13 @@ impl PresetLoader {
 
     /// Resolve variant preferences for a preset, following inheritance chain.
     fn resolve_variant_preferences(&self, preset: &Preset) -> HashMap<String, String> {
-        let mut resolved = HashMap::new();
-
-        // First, apply parent's preferences if we extend something
-        if let Some(ref parent_name) = preset.extends {
-            if let Some(parent) = self.presets.get(parent_name) {
-                resolved = self.resolve_variant_preferences(&parent.preset);
-            }
-        }
+        let mut resolved = if let Some(ref parent_name) = preset.extends
+            && let Some(parent) = self.presets.get(parent_name)
+        {
+            self.resolve_variant_preferences(&parent.preset)
+        } else {
+            HashMap::new()
+        };
 
         // Then apply our own preferences on top
         for (section, variant) in &preset.variant_preferences {
@@ -253,10 +251,10 @@ impl PresetLoader {
     #[must_use]
     pub fn is_component_blacklisted(&self, component_id: &str) -> bool {
         for name in &self.active_stack {
-            if let Some(loaded) = self.presets.get(name) {
-                if loaded.preset.blacklist.is_component_blocked(component_id) {
-                    return true;
-                }
+            if let Some(loaded) = self.presets.get(name)
+                && loaded.preset.blacklist.is_component_blocked(component_id)
+            {
+                return true;
             }
         }
         false
@@ -266,10 +264,10 @@ impl PresetLoader {
     #[must_use]
     pub fn has_blacklisted_tag(&self, tags: &[String]) -> bool {
         for name in &self.active_stack {
-            if let Some(loaded) = self.presets.get(name) {
-                if loaded.preset.blacklist.has_blocked_tag(tags) {
-                    return true;
-                }
+            if let Some(loaded) = self.presets.get(name)
+                && loaded.preset.blacklist.has_blocked_tag(tags)
+            {
+                return true;
             }
         }
         false
@@ -279,10 +277,10 @@ impl PresetLoader {
     #[must_use]
     pub fn is_category_blacklisted(&self, category: &str) -> bool {
         for name in &self.active_stack {
-            if let Some(loaded) = self.presets.get(name) {
-                if loaded.preset.blacklist.is_category_blocked(category) {
-                    return true;
-                }
+            if let Some(loaded) = self.presets.get(name)
+                && loaded.preset.blacklist.is_category_blocked(category)
+            {
+                return true;
             }
         }
         false
@@ -292,10 +290,10 @@ impl PresetLoader {
     #[must_use]
     pub fn is_component_whitelisted(&self, component_id: &str) -> bool {
         for name in &self.active_stack {
-            if let Some(loaded) = self.presets.get(name) {
-                if loaded.preset.whitelist.is_component_preferred(component_id) {
-                    return true;
-                }
+            if let Some(loaded) = self.presets.get(name)
+                && loaded.preset.whitelist.is_component_preferred(component_id)
+            {
+                return true;
             }
         }
         false

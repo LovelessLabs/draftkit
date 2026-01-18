@@ -130,15 +130,15 @@ fn load_embedded_components() -> HashMap<Framework, Vec<ComponentRecord>> {
 
     for framework in [Framework::React, Framework::Vue, Framework::Html] {
         let filename = framework.ndjson_filename();
-        if let Some(file) = COMPONENTS_DIR.get_file(filename) {
-            if let Some(contents) = file.contents_utf8() {
-                let components: Vec<ComponentRecord> = contents
-                    .lines()
-                    .filter(|line| !line.is_empty())
-                    .filter_map(|line| serde_json::from_str(line).ok())
-                    .collect();
-                index.insert(framework, components);
-            }
+        if let Some(file) = COMPONENTS_DIR.get_file(filename)
+            && let Some(contents) = file.contents_utf8()
+        {
+            let components: Vec<ComponentRecord> = contents
+                .lines()
+                .filter(|line| !line.is_empty())
+                .filter_map(|line| serde_json::from_str(line).ok())
+                .collect();
+            index.insert(framework, components);
         }
     }
 

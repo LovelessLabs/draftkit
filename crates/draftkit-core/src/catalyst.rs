@@ -83,10 +83,10 @@ fn list_runtime_components(language: CatalystLanguage) -> Option<Vec<String>> {
     if let Ok(entries) = std::fs::read_dir(dir.as_std_path()) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.extension().is_some_and(|ext| ext == extension) {
-                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    names.push(stem.to_string());
-                }
+            if path.extension().is_some_and(|ext| ext == extension)
+                && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
+            {
+                names.push(stem.to_string());
             }
         }
     }
@@ -193,12 +193,11 @@ fn load_all_runtime_components(language: CatalystLanguage) -> Option<Vec<(String
     if let Ok(entries) = std::fs::read_dir(dir.as_std_path()) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.extension().is_some_and(|ext| ext == extension) {
-                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    if let Ok(content) = std::fs::read_to_string(&path) {
-                        components.push((stem.to_string(), content));
-                    }
-                }
+            if path.extension().is_some_and(|ext| ext == extension)
+                && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
+                && let Ok(content) = std::fs::read_to_string(&path)
+            {
+                components.push((stem.to_string(), content));
             }
         }
     }

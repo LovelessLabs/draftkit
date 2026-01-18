@@ -104,11 +104,7 @@ impl IntelligenceBuilder {
             let section_type = analyses.first().map(|a| a.section_type);
 
             // Calculate frequency
-            let frequency = self
-                .page_appearances
-                .get(section_id)
-                .copied()
-                .unwrap_or(0) as f32
+            let frequency = self.page_appearances.get(section_id).copied().unwrap_or(0) as f32
                 / self.total_pages.max(1) as f32;
 
             // Get templates this section appears in
@@ -131,10 +127,7 @@ impl IntelligenceBuilder {
                         })
                         .collect();
                     rels.sort_by(|a, b| b.count.cmp(&a.count));
-                    rels.into_iter()
-                        .take(5)
-                        .map(|r| r.id)
-                        .collect::<Vec<_>>()
+                    rels.into_iter().take(5).map(|r| r.id).collect::<Vec<_>>()
                 })
                 .unwrap_or_default();
 
@@ -151,10 +144,7 @@ impl IntelligenceBuilder {
                         })
                         .collect();
                     rels.sort_by(|a, b| b.count.cmp(&a.count));
-                    rels.into_iter()
-                        .take(5)
-                        .map(|r| r.id)
-                        .collect::<Vec<_>>()
+                    rels.into_iter().take(5).map(|r| r.id).collect::<Vec<_>>()
                 })
                 .unwrap_or_default();
 
@@ -295,9 +285,8 @@ impl IntelligenceBuilder {
             }
         });
 
-        let json = serde_json::to_string_pretty(&output).map_err(|e| {
-            std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())
-        })?;
+        let json = serde_json::to_string_pretty(&output)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
 
         std::fs::write(path.as_std_path(), json)
     }

@@ -296,10 +296,10 @@ impl StyleExtractor {
                     unique_colors.insert(color.to_string());
 
                     // High saturation shades (400-600 typically most vibrant)
-                    if let Ok(shade_num) = shade.parse::<u32>() {
-                        if (400..=600).contains(&shade_num) {
-                            high_saturation_count += 1;
-                        }
+                    if let Ok(shade_num) = shade.parse::<u32>()
+                        && (400..=600).contains(&shade_num)
+                    {
+                        high_saturation_count += 1;
                     }
                 }
             }
@@ -353,10 +353,10 @@ impl StyleExtractor {
                 // Handle fractional values like "1/2"
                 if rest.contains('/') {
                     let parts: Vec<&str> = rest.split('/').collect();
-                    if parts.len() == 2 {
-                        if let (Ok(n), Ok(d)) = (parts[0].parse::<f32>(), parts[1].parse::<f32>()) {
-                            return Some(n / d * 4.0); // Approximate rem value
-                        }
+                    if parts.len() == 2
+                        && let (Ok(n), Ok(d)) = (parts[0].parse::<f32>(), parts[1].parse::<f32>())
+                    {
+                        return Some(n / d * 4.0); // Approximate rem value
                     }
                 }
                 // Handle special values

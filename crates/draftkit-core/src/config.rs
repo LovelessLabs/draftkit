@@ -156,17 +156,17 @@ impl ConfigLoader {
         let mut builder = config::Config::builder();
 
         // Start with user config (lowest precedence of file sources)
-        if self.include_user_config {
-            if let Some(user_config) = self.find_user_config() {
-                builder = self.add_file(builder, &user_config)?;
-            }
+        if self.include_user_config
+            && let Some(user_config) = self.find_user_config()
+        {
+            builder = self.add_file(builder, &user_config)?;
         }
 
         // Add project config
-        if let Some(ref root) = self.project_search_root {
-            if let Some(project_config) = self.find_project_config(root) {
-                builder = self.add_file(builder, &project_config)?;
-            }
+        if let Some(ref root) = self.project_search_root
+            && let Some(project_config) = self.find_project_config(root)
+        {
+            builder = self.add_file(builder, &project_config)?;
         }
 
         // Add explicit files (highest precedence)
@@ -219,10 +219,10 @@ impl ConfigLoader {
 
             // Check for boundary marker AFTER searching this directory.
             // If we find the marker, don't continue to parent directories.
-            if let Some(ref marker) = self.boundary_marker {
-                if dir.join(marker).exists() {
-                    break;
-                }
+            if let Some(ref marker) = self.boundary_marker
+                && dir.join(marker).exists()
+            {
+                break;
             }
 
             current = dir.parent().map(Utf8Path::to_path_buf);

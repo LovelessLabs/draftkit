@@ -12,7 +12,7 @@ fn main() {
         .iter()
         .position(|a| a == "--output")
         .and_then(|i| args.get(i + 1))
-        .map(|s| Utf8Path::new(s));
+        .map(Utf8Path::new);
 
     let kits_dir = Utf8Path::new("cache/current/kits");
 

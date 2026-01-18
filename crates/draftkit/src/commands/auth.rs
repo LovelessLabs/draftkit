@@ -279,24 +279,23 @@ pub async fn cmd_auth(args: AuthArgs, styler: &Styler) -> Result<()> {
     }
 
     // Check for existing session (unless --refresh)
-    if !args.refresh {
-        if let Some(session) = get_session()? {
-            if !session.is_expired() {
-                styler.print_success("Already authenticated!");
-                println!();
-                if session.is_expiring_soon() {
-                    styler.print_warning(
-                        "Session expires soon. Run `draftkit auth --refresh` to renew.",
-                    );
-                } else {
-                    println!("Run `draftkit auth --status` to see session details.");
-                    println!("Run `draftkit auth --refresh` to get a new session.");
-                }
-                return Ok(());
+    if !args.refresh
+        && let Some(session) = get_session()?
+    {
+        if !session.is_expired() {
+            styler.print_success("Already authenticated!");
+            println!();
+            if session.is_expiring_soon() {
+                styler
+                    .print_warning("Session expires soon. Run `draftkit auth --refresh` to renew.");
+            } else {
+                println!("Run `draftkit auth --status` to see session details.");
+                println!("Run `draftkit auth --refresh` to get a new session.");
             }
-            // Session expired, continue to re-auth
-            styler.print_warning("Session expired. Starting re-authentication...");
+            return Ok(());
         }
+        // Session expired, continue to re-auth
+        styler.print_warning("Session expired. Starting re-authentication...");
     }
 
     // Try browser auth first, fall back to manual

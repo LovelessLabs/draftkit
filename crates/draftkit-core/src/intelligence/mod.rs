@@ -44,12 +44,30 @@
 
 mod coherence;
 mod component_matcher;
+mod intelligence_writer;
 mod matcher;
+mod page_analyzer;
+mod site_intelligence;
+mod style_extractor;
+mod template_analyzer;
 
 pub use coherence::{
     CoherenceChecker, CoherenceIssue, CompatibilityScore, IssueCategory, PageCoherence,
 };
 pub use component_matcher::{ComponentMatcher, ComponentRecommendation};
+pub use intelligence_writer::IntelligenceBuilder;
 pub use matcher::{
     PatternMatcher, Recipe, RecipeOptions, RecipeSection, SectionSuggestion, StylePreference,
+};
+pub use page_analyzer::{
+    ComponentAnalysis, ComponentUsage, LayoutAnalysis, PageAnalysis, PageAnalysisError,
+    PageAnalyzer, PageType, TemplatePageAnalysis,
+};
+pub use site_intelligence::{
+    CrossTemplateComponent, SiteIntelligence, SiteRecommendation, TemplateRanking,
+};
+pub use style_extractor::StyleExtractor;
+pub use template_analyzer::{
+    AggregateStats, AnalysisError, PageStructure, SectionAnalysis, SectionType, TemplateAnalysis,
+    TemplateAnalyzer,
 };

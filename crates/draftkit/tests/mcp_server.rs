@@ -600,3 +600,56 @@ fn mcp_error_component_not_found() {
         "Should return component not found error: {responses:?}"
     );
 }
+
+#[test]
+fn mcp_recommend_components() {
+    let requests = &[
+        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}"#,
+        r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
+        r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"recommend_components","arguments":{"page_types":["landing","blog"]}}}"#,
+    ];
+
+    let responses = run_mcp_session(requests);
+    // Should return recommendations with real component IDs containing "marketing/"
+    let has_recommendations = responses.iter().any(|r| r.contains("marketing/"));
+    assert!(
+        has_recommendations,
+        "Should return component recommendations with real IDs: {responses:?}"
+    );
+}
+
+#[test]
+fn mcp_recommend_components_with_real_ids() {
+    let requests = &[
+        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}"#,
+        r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
+        r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"recommend_components","arguments":{"page_types":["landing"]}}}"#,
+    ];
+
+    let responses = run_mcp_session(requests);
+    // Component IDs should contain real category paths like "marketing/"
+    let has_real_ids = responses.iter().any(|r| r.contains("marketing/"));
+    assert!(
+        has_real_ids,
+        "Should contain real component IDs with category paths: {responses:?}"
+    );
+}
+
+#[test]
+fn mcp_get_recipe_returns_real_component_ids() {
+    let requests = &[
+        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}"#,
+        r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
+        r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_recipe","arguments":{"pattern":"saas-landing"}}}"#,
+    ];
+
+    let responses = run_mcp_session(requests);
+    // Recipe should have recommended_components with real IDs
+    let has_recommendations = responses
+        .iter()
+        .any(|r| r.contains("recommended_components") && r.contains("marketing/"));
+    assert!(
+        has_recommendations,
+        "Recipe should contain real component IDs in recommendations: {responses:?}"
+    );
+}

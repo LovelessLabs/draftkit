@@ -19,7 +19,7 @@ use draftkit_core::catalyst::{self, CatalystLanguage};
 use draftkit_core::components::TailwindVersion;
 use draftkit_core::fetch::{ComponentFetcher, FetchError};
 use draftkit_core::intelligence::{
-    ComponentMatcher, PatternMatcher, RecipeOptions, StylePreference,
+    ComponentMatcher, PageType, PatternMatcher, RecipeOptions, StylePreference,
 };
 use draftkit_core::patterns::PatternLoader;
 use draftkit_core::{ComponentReader, Framework, Mode, cache, docs, elements};
@@ -154,6 +154,12 @@ pub struct SuggestSectionParams {
     /// Current sections already added to the page (by type, e.g., ["header", "hero"])
     #[serde(default)]
     pub current_sections: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct RecommendTemplatesParams {
+    /// Page types needed for the site (e.g., ["landing", "blog", "docs", "pricing"])
+    pub page_types: Vec<String>,
 }
 
 // Response types
@@ -1126,6 +1132,163 @@ impl DraftkitServer {
         Ok(CallToolResult::success(vec![Content::text(
             serde_json::to_string_pretty(&response).unwrap(),
         )]))
+    }
+
+    #[tool(
+        description = "Get component recommendations for building a multi-page site. Given page types (landing, blog, docs, pricing, etc.), recommends UI Block components for each page that will work well together stylistically."
+    )]
+    async fn recommend_components(
+        &self,
+        Parameters(params): Parameters<RecommendTemplatesParams>,
+    ) -> Result<CallToolResult, McpError> {
+        // Parse page type strings to PageType enum
+        let page_types: Vec<PageType> = params
+            .page_types
+            .iter()
+            .map(|s| parse_page_type(s))
+            .collect();
+
+        // Create component matcher for recommendations
+        let component_matcher = ComponentMatcher::react();
+
+        // Build recommendations for each page type
+        let mut page_recommendations = serde_json::Map::new();
+
+        for page_type in &page_types {
+            // Map page type to section types typically needed
+            let section_types = page_type_to_sections(*page_type);
+
+            let mut sections = Vec::new();
+            for section_type in section_types {
+                // Get component recommendations for this section
+                let recommendations = component_matcher.match_section(&section_type, "", 3);
+
+                let components: Vec<serde_json::Value> = recommendations
+                    .iter()
+                    .map(|r| {
+                        serde_json::json!({
+                            "id": r.id,
+                            "name": r.name,
+                            "category": r.category,
+                            "subcategory": r.subcategory,
+                            "confidence": r.confidence,
+                            "preview_url": r.preview_url
+                        })
+                    })
+                    .collect();
+
+                sections.push(serde_json::json!({
+                    "section_type": section_type,
+                    "recommended_components": components
+                }));
+            }
+
+            page_recommendations.insert(
+                page_type.as_str().to_string(),
+                serde_json::json!({
+                    "sections": sections
+                }),
+            );
+        }
+
+        // Style notes based on number of page types
+        let style_notes = if page_types.len() > 3 {
+            vec![
+                "Multiple page types detected - consider using consistent header/footer components"
+                    .to_string(),
+                "Use the same color scheme across all pages for cohesion".to_string(),
+            ]
+        } else {
+            vec!["Use get_component to fetch the recommended components".to_string()]
+        };
+
+        let response = serde_json::json!({
+            "page_count": page_types.len(),
+            "pages": page_recommendations,
+            "style_notes": style_notes
+        });
+
+        let json = serde_json::to_string_pretty(&response)
+            .map_err(|e| McpError::internal_error(format!("Serialization error: {e}"), None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(json)]))
+    }
+}
+
+/// Map a page type to the section types typically needed for that page.
+fn page_type_to_sections(page_type: PageType) -> Vec<String> {
+    match page_type {
+        PageType::Home => vec![
+            "header".to_string(),
+            "hero".to_string(),
+            "feature".to_string(),
+            "testimonial".to_string(),
+            "cta".to_string(),
+            "footer".to_string(),
+        ],
+        PageType::Pricing => vec![
+            "header".to_string(),
+            "pricing".to_string(),
+            "faq".to_string(),
+            "cta".to_string(),
+            "footer".to_string(),
+        ],
+        PageType::Blog => vec![
+            "header".to_string(),
+            "blog".to_string(),
+            "footer".to_string(),
+        ],
+        PageType::Docs => vec![
+            "header".to_string(),
+            "content".to_string(),
+            "footer".to_string(),
+        ],
+        PageType::About => vec![
+            "header".to_string(),
+            "hero".to_string(),
+            "team".to_string(),
+            "footer".to_string(),
+        ],
+        PageType::Contact => vec![
+            "header".to_string(),
+            "contact".to_string(),
+            "footer".to_string(),
+        ],
+        PageType::Portfolio => vec![
+            "header".to_string(),
+            "hero".to_string(),
+            "portfolio".to_string(),
+            "footer".to_string(),
+        ],
+        PageType::Auth => vec!["auth".to_string()],
+        PageType::Dashboard => vec!["sidebar".to_string(), "content".to_string()],
+        _ => vec![
+            "header".to_string(),
+            "content".to_string(),
+            "footer".to_string(),
+        ],
+    }
+}
+
+/// Parse a page type string to PageType enum.
+fn parse_page_type(s: &str) -> PageType {
+    match s.to_lowercase().as_str() {
+        "home" | "landing" | "index" => PageType::Home,
+        "about" | "team" | "company" => PageType::About,
+        "pricing" | "plans" => PageType::Pricing,
+        "blog" | "articles" | "posts" => PageType::Blog,
+        "docs" | "documentation" | "guide" | "guides" => PageType::Docs,
+        "contact" => PageType::Contact,
+        "legal" | "privacy" | "terms" => PageType::Legal,
+        "changelog" | "releases" => PageType::Changelog,
+        "api" | "api-reference" => PageType::ApiReference,
+        "portfolio" | "projects" | "work" => PageType::Portfolio,
+        "auth" | "login" | "signin" | "register" => PageType::Auth,
+        "dashboard" | "app" | "settings" => PageType::Dashboard,
+        "media" | "podcast" | "videos" => PageType::Media,
+        "error" | "404" | "500" => PageType::Error,
+        "resources" | "downloads" => PageType::Resources,
+        _ => PageType::Content,
     }
 }
 

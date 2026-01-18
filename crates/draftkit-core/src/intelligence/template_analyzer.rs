@@ -283,7 +283,8 @@ impl TemplateAnalyzer {
                 continue;
             }
 
-            let path = Utf8PathBuf::try_from(path).map_err(|_| AnalysisError::InvalidPath)?;
+            let path = Utf8PathBuf::try_from(path)
+                .map_err(|_| AnalysisError::InvalidPath)?;
 
             if let Some(analysis) = Self::analyze_section_file(&path)? {
                 sections.push(analysis);
@@ -371,12 +372,12 @@ impl TemplateAnalyzer {
             let path = entry.path();
 
             if path.is_dir() {
-                let utf8_path =
-                    Utf8PathBuf::try_from(path).map_err(|_| AnalysisError::InvalidPath)?;
+                let utf8_path = Utf8PathBuf::try_from(path)
+                    .map_err(|_| AnalysisError::InvalidPath)?;
                 Self::find_page_files(&utf8_path, pages, name_to_id)?;
             } else if path.file_name().and_then(|n| n.to_str()) == Some("page.tsx") {
-                let utf8_path =
-                    Utf8PathBuf::try_from(path.clone()).map_err(|_| AnalysisError::InvalidPath)?;
+                let utf8_path = Utf8PathBuf::try_from(path.clone())
+                    .map_err(|_| AnalysisError::InvalidPath)?;
 
                 if let Some(structure) = Self::analyze_page_file(&utf8_path, name_to_id)? {
                     pages.push(structure);

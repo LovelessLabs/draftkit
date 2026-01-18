@@ -32,7 +32,10 @@ fn main() {
 
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.is_dir() && !path.file_name().is_some_and(|n| n.to_string_lossy().starts_with('.'))
+        if path.is_dir()
+            && !path
+                .file_name()
+                .is_some_and(|n| n.to_string_lossy().starts_with('.'))
         {
             let utf8_path = camino::Utf8PathBuf::try_from(path).expect("Invalid UTF-8 path");
             let template_name = utf8_path.file_name().unwrap_or("unknown");
@@ -133,7 +136,9 @@ fn main() {
                 .iter()
                 .filter(|p| p.page_type == page.page_type)
                 .count();
-            let entry = best_for_type.entry(page.page_type).or_insert((name.clone(), 0));
+            let entry = best_for_type
+                .entry(page.page_type)
+                .or_insert((name.clone(), 0));
             if count > entry.1 {
                 *entry = (name.clone(), count);
             }

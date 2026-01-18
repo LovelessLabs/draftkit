@@ -600,7 +600,10 @@ impl PageAnalyzer {
                     let component_name = import.split(" as ").next().unwrap_or(import).trim();
 
                     if component_name.is_empty()
-                        || !component_name.chars().next().is_some_and(|c| c.is_uppercase())
+                        || !component_name
+                            .chars()
+                            .next()
+                            .is_some_and(|c| c.is_uppercase())
                     {
                         continue;
                     }
@@ -741,7 +744,10 @@ impl PageAnalyzer {
                     let component_name = import.split(" as ").next().unwrap_or(import).trim();
 
                     if component_name.is_empty()
-                        || !component_name.chars().next().is_some_and(|c| c.is_uppercase())
+                        || !component_name
+                            .chars()
+                            .next()
+                            .is_some_and(|c| c.is_uppercase())
                     {
                         continue;
                     }
@@ -944,7 +950,7 @@ impl PageAnalyzer {
                     if seen_components.insert(id.clone()) {
                         component_usages.push(ComponentUsage {
                             id: id.clone(),
-                            import_path: None,          // Markdoc components are registered globally
+                            import_path: None, // Markdoc components are registered globally
                             is_inline: false,
                             style: None,
                         });
@@ -1388,7 +1394,10 @@ mod tests {
     fn page_type_strips_route_groups() {
         // /(main) group should be stripped, resulting in "/" = home
         assert_eq!(PageType::from_route("/(main)"), PageType::Home);
-        assert_eq!(PageType::from_route("/(centered)/resources"), PageType::Resources);
+        assert_eq!(
+            PageType::from_route("/(centered)/resources"),
+            PageType::Resources
+        );
         assert_eq!(PageType::from_route("/(sidebar)/blog"), PageType::Blog);
     }
 
@@ -1402,6 +1411,11 @@ mod tests {
     fn normalize_route_strips_groups() {
         assert_eq!(PageType::normalize_route("/(main)"), "/");
         assert_eq!(PageType::normalize_route("/(auth)/login"), "/login");
+        assert_eq!(
+            PageType::normalize_route("/(centered)/resources"),
+            "/resources"
+        );
+        assert_eq!(PageType::normalize_route("/(main)/(nested)/page"), "/page");
         assert_eq!(PageType::normalize_route("/(centered)/resources"), "/resources");
         assert_eq!(
             PageType::normalize_route("/(main)/(nested)/page"),

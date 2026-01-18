@@ -25,7 +25,10 @@ fn main() {
 
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.is_dir() && !path.file_name().is_some_and(|n| n.to_string_lossy().starts_with('.'))
+        if path.is_dir()
+            && !path
+                .file_name()
+                .is_some_and(|n| n.to_string_lossy().starts_with('.'))
         {
             let utf8_path = camino::Utf8PathBuf::try_from(path).expect("Invalid UTF-8 path");
             let _ = analyzer.analyze_template(&utf8_path);
@@ -41,7 +44,12 @@ fn main() {
     println!("Best template for each page type:");
     for page_type in site.supported_page_types() {
         if let Some(ranking) = site.ranking_for(page_type) {
-            print!("  {}: {} (score: {})", page_type.as_str(), ranking.best, ranking.score);
+            print!(
+                "  {}: {} (score: {})",
+                page_type.as_str(),
+                ranking.best,
+                ranking.score
+            );
             if !ranking.alternatives.is_empty() {
                 print!(" | also: {}", ranking.alternatives.join(", "));
             }
@@ -66,7 +74,10 @@ fn main() {
     }
     println!("\nTemplates used: {}", saas_rec.template_count);
     if !saas_rec.shareable_components.is_empty() {
-        println!("Shareable components: {}", saas_rec.shareable_components.join(", "));
+        println!(
+            "Shareable components: {}",
+            saas_rec.shareable_components.join(", ")
+        );
     }
     println!("Style notes:");
     for note in &saas_rec.style_notes {

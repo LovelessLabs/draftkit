@@ -186,7 +186,10 @@ impl TemplateAnalyzer {
     /// # Errors
     ///
     /// Returns an error if the template directory doesn't exist or can't be read.
-    pub fn analyze_template(&mut self, path: &Utf8Path) -> Result<&TemplateAnalysis, AnalysisError> {
+    pub fn analyze_template(
+        &mut self,
+        path: &Utf8Path,
+    ) -> Result<&TemplateAnalysis, AnalysisError> {
         let name = path
             .file_name()
             .ok_or(AnalysisError::InvalidPath)?
@@ -308,7 +311,11 @@ impl TemplateAnalyzer {
             .to_string();
 
         // Generate human-readable name
-        let name = id.split('-').map(capitalize_word).collect::<Vec<_>>().join(" ");
+        let name = id
+            .split('-')
+            .map(capitalize_word)
+            .collect::<Vec<_>>()
+            .join(" ");
 
         // Infer section type
         let section_type = SectionType::from_name(&id);
@@ -337,7 +344,11 @@ impl TemplateAnalyzer {
         let mut name_to_id: HashMap<String, String> = HashMap::new();
         for section in sections {
             // Map PascalCase export name to section ID
-            let pascal_name = section.id.split('-').map(capitalize_word).collect::<String>();
+            let pascal_name = section
+                .id
+                .split('-')
+                .map(capitalize_word)
+                .collect::<String>();
             name_to_id.insert(pascal_name, section.id.clone());
         }
 
@@ -441,7 +452,10 @@ impl TemplateAnalyzer {
                 stats.spacing_density_sum += section.style.spacing_density;
 
                 *stats.section_types.entry(section.section_type).or_insert(0) += 1;
-                *stats.typography_scales.entry(section.style.typography_scale).or_insert(0) += 1;
+                *stats
+                    .typography_scales
+                    .entry(section.style.typography_scale)
+                    .or_insert(0) += 1;
             }
         }
 
@@ -539,12 +553,27 @@ mod tests {
 
     #[test]
     fn section_type_from_name() {
-        assert_eq!(SectionType::from_name("hero-centered-with-demo"), SectionType::Hero);
-        assert_eq!(SectionType::from_name("features-two-column"), SectionType::Features);
-        assert_eq!(SectionType::from_name("pricing-three-tier"), SectionType::Pricing);
-        assert_eq!(SectionType::from_name("testimonial-grid"), SectionType::Testimonial);
+        assert_eq!(
+            SectionType::from_name("hero-centered-with-demo"),
+            SectionType::Hero
+        );
+        assert_eq!(
+            SectionType::from_name("features-two-column"),
+            SectionType::Features
+        );
+        assert_eq!(
+            SectionType::from_name("pricing-three-tier"),
+            SectionType::Pricing
+        );
+        assert_eq!(
+            SectionType::from_name("testimonial-grid"),
+            SectionType::Testimonial
+        );
         assert_eq!(SectionType::from_name("footer-simple"), SectionType::Footer);
-        assert_eq!(SectionType::from_name("random-component"), SectionType::Unknown);
+        assert_eq!(
+            SectionType::from_name("random-component"),
+            SectionType::Unknown
+        );
     }
 
     #[test]

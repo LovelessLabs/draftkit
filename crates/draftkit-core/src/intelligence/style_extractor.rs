@@ -200,7 +200,8 @@ impl StyleExtractor {
 
             // Borders add weight
             if base.starts_with("border") && !base.contains("transparent") {
-                if base == "border" || base.starts_with("border-x") || base.starts_with("border-y") {
+                if base == "border" || base.starts_with("border-x") || base.starts_with("border-y")
+                {
                     score += 0.5;
                 } else if base.starts_with("border-2") || base.starts_with("border-4") {
                     score += 1.0;
@@ -339,8 +340,8 @@ impl StyleExtractor {
     /// Extract numeric spacing value from a Tailwind spacing class.
     fn extract_spacing_value(class: &str) -> Option<f32> {
         let prefixes = [
-            "p-", "px-", "py-", "pt-", "pb-", "pl-", "pr-", "m-", "mx-", "my-", "mt-", "mb-", "ml-",
-            "mr-", "gap-", "gap-x-", "gap-y-", "space-x-", "space-y-",
+            "p-", "px-", "py-", "pt-", "pb-", "pl-", "pr-", "m-", "mx-", "my-", "mt-", "mb-",
+            "ml-", "mr-", "gap-", "gap-x-", "gap-y-", "space-x-", "space-y-",
         ];
 
         for prefix in prefixes {

@@ -5,7 +5,8 @@
 //! Recipe
 //!   ↓
 //! For each section:
-//!   → Fetch component code
+//!   → Match section to real component (ComponentMatcher)
+//!   → Fetch component code (ComponentFetcher)
 //!   → Fill slots (headlines, CTAs, features)
 //!   → Transform for framework
 //!   ↓
@@ -17,7 +18,7 @@
 //! Write to file
 //! ```
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io;
 
@@ -27,8 +28,8 @@ use thiserror::Error;
 
 use super::{FrameworkTarget, ProjectConfig};
 use crate::components::{Framework, Mode};
-use crate::fetch::ComponentFetcher;
-use crate::intelligence::{Recipe, RecipeSection};
+use crate::fetch::{ComponentFetcher, FetchError};
+use crate::intelligence::{ComponentMatcher, Recipe, RecipeSection};
 
 /// Page generation error.
 #[derive(Debug, Error)]
@@ -40,7 +41,10 @@ pub enum GenerateError {
     ComponentNotFound(String),
 
     #[error("Failed to fetch component: {0}")]
-    FetchError(String),
+    FetchError(#[from] FetchError),
+
+    #[error("No matching component for section: {0}")]
+    NoMatchingComponent(String),
 
     #[error("I/O error: {0}")]
     Io(#[from] io::Error),
@@ -151,23 +155,43 @@ pub struct GeneratedPage {
 /// Page generator for assembling components into pages.
 pub struct PageGenerator {
     /// Component fetcher for authenticated access (used in real component assembly).
-    #[allow(dead_code)]
     fetcher: Option<ComponentFetcher>,
+    /// Component matcher for finding real components from section types.
+    matcher: ComponentMatcher,
 }
 
 impl PageGenerator {
     /// Create a new page generator.
     #[must_use]
-    pub const fn new() -> Self {
-        Self { fetcher: None }
+    pub fn new() -> Self {
+        Self {
+            fetcher: None,
+            matcher: ComponentMatcher::react(),
+        }
     }
 
     /// Create a generator with a component fetcher for authenticated access.
     #[must_use]
-    pub const fn with_fetcher(fetcher: ComponentFetcher) -> Self {
+    pub fn with_fetcher(fetcher: ComponentFetcher) -> Self {
         Self {
             fetcher: Some(fetcher),
+            matcher: ComponentMatcher::react(),
         }
+    }
+
+    /// Create a generator with a specific framework's matcher.
+    #[must_use]
+    pub fn for_framework(framework: Framework) -> Self {
+        Self {
+            fetcher: None,
+            matcher: ComponentMatcher::new(crate::components::ComponentReader::new(), framework),
+        }
+    }
+
+    /// Check if this generator has a fetcher for real component access.
+    #[must_use]
+    pub const fn has_fetcher(&self) -> bool {
+        self.fetcher.is_some()
     }
 
     /// Generate a page from a recipe.
@@ -254,9 +278,216 @@ impl PageGenerator {
         Ok(())
     }
 
+    /// Generate a page from a recipe with real component fetching.
+    ///
+    /// This async method:
+    /// 1. Matches each section to real components in the catalog
+    /// 2. Fetches actual component source code via authenticated TailwindPlus access
+    /// 3. Extracts imports and transforms code for the target framework
+    /// 4. Assembles into a complete page
+    ///
+    /// Requires a `ComponentFetcher` to be configured (use `with_fetcher()`).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - No fetcher is configured
+    /// - A section has no matching component in the catalog
+    /// - Component fetching fails (auth, network, etc.)
+    pub async fn generate_from_recipe_async(
+        &self,
+        recipe: &Recipe,
+        config: &ProjectConfig,
+        options: &GenerateOptions,
+    ) -> Result<GeneratedPage, GenerateError> {
+        let fetcher = self
+            .fetcher
+            .as_ref()
+            .ok_or_else(|| GenerateError::ComponentNotFound("No fetcher configured".to_string()))?;
+
+        let framework = self.framework_from_target(config.framework);
+        let mut sections_code = Vec::new();
+        let mut all_dependencies = HashSet::new();
+        let mut all_imports = HashSet::new();
+
+        for section in &recipe.sections {
+            // Match section to real components
+            let recommendations =
+                self.matcher
+                    .match_section(&section.section_type, &section.variant_id, 1);
+
+            let recommendation = recommendations.first().ok_or_else(|| {
+                GenerateError::NoMatchingComponent(format!(
+                    "{} (variant: {})",
+                    section.section_type, section.variant_id
+                ))
+            })?;
+
+            // Find the full component record to get UUID and category path
+            let reader = crate::components::ComponentReader::new();
+            let component = reader
+                .find_by_id(framework, &recommendation.id)
+                .ok_or_else(|| GenerateError::ComponentNotFound(recommendation.id.clone()))?;
+
+            // Fetch the real component code
+            let code = fetcher
+                .fetch_component(
+                    &component.uuid,
+                    &component.category,
+                    &component.subcategory,
+                    &component.sub_subcategory,
+                    framework,
+                    options.mode,
+                )
+                .await?;
+
+            // Parse and transform the fetched code
+            let (section_imports, section_body) = self.parse_component_code(&code, framework);
+
+            // Collect imports (deduplicated)
+            all_imports.extend(section_imports);
+
+            // Add section comment and body
+            let section_code = format!(
+                "      {{/* {} - {} */}}\n{}",
+                recommendation.name, section.section_type, section_body
+            );
+            sections_code.push(section_code);
+
+            // Extract dependencies from component metadata
+            if let Some(meta) = &component.meta {
+                for dep in &meta.dependencies.packages {
+                    all_dependencies.insert(dep.clone());
+                }
+            }
+        }
+
+        // Assemble final page
+        let imports_vec: Vec<String> = all_imports.into_iter().collect();
+        let content = self.assemble_react_page_with_imports(&imports_vec, &sections_code);
+
+        // Collect dependencies
+        let dependencies: Vec<String> = all_dependencies.into_iter().collect();
+
+        // Determine output path
+        let path = options
+            .output_path
+            .clone()
+            .unwrap_or_else(|| config.path.join(config.framework.main_source_path()));
+
+        Ok(GeneratedPage {
+            name: "index".to_string(),
+            path,
+            content,
+            dependencies,
+            dev_dependencies: vec![],
+        })
+    }
+
+    /// Get component recommendations for a recipe without fetching code.
+    ///
+    /// Useful for previewing what components would be used before generation.
+    #[must_use]
+    pub fn get_component_recommendations(
+        &self,
+        recipe: &Recipe,
+    ) -> Vec<crate::intelligence::ComponentRecommendation> {
+        recipe
+            .sections
+            .iter()
+            .filter_map(|section| {
+                self.matcher
+                    .match_section(&section.section_type, &section.variant_id, 1)
+                    .into_iter()
+                    .next()
+            })
+            .collect()
+    }
+
     // -------------------------------------------------------------------------
     // Internal helpers
     // -------------------------------------------------------------------------
+
+    /// Parse component code to extract imports and body.
+    ///
+    /// Returns (imports, body) where imports are React import statements
+    /// and body is the JSX content to embed in the page.
+    fn parse_component_code(&self, code: &str, _framework: Framework) -> (Vec<String>, String) {
+        let mut imports = Vec::new();
+        let mut body_lines = Vec::new();
+        let mut in_component = false;
+        let mut brace_depth: u32 = 0;
+
+        for line in code.lines() {
+            let trimmed = line.trim();
+
+            // Collect import statements
+            if trimmed.starts_with("import ") {
+                // Skip React import (will be at page level)
+                if !trimmed.contains("from 'react'") && !trimmed.contains("from \"react\"") {
+                    imports.push(line.to_string());
+                }
+                continue;
+            }
+
+            // Track when we enter the component function body
+            if trimmed.starts_with("export default function")
+                || trimmed.starts_with("function ")
+                || trimmed.starts_with("export function")
+            {
+                in_component = true;
+                continue;
+            }
+
+            // Track braces to know when we're in the return statement
+            if in_component {
+                for ch in line.chars() {
+                    match ch {
+                        '{' => brace_depth += 1,
+                        '}' => brace_depth = brace_depth.saturating_sub(1),
+                        _ => {}
+                    }
+                }
+
+                // Capture lines that are part of the JSX return
+                // Skip the return statement itself
+                if !trimmed.starts_with("return") && brace_depth > 0 {
+                    body_lines.push(format!("      {}", line.trim_start()));
+                }
+            }
+        }
+
+        // If we didn't find a proper component structure, just use the whole code
+        let body = if body_lines.is_empty() {
+            format!("      {}", code.replace('\n', "\n      "))
+        } else {
+            body_lines.join("\n")
+        };
+
+        (imports, body)
+    }
+
+    /// Assemble a React page with proper imports.
+    fn assemble_react_page_with_imports(&self, imports: &[String], sections: &[String]) -> String {
+        let imports_str = if imports.is_empty() {
+            String::new()
+        } else {
+            format!("{}\n\n", imports.join("\n"))
+        };
+
+        let sections_jsx = sections.join("\n\n");
+
+        format!(
+            r#"{imports_str}export default function App() {{
+  return (
+    <div className="min-h-screen bg-white">
+{sections_jsx}
+    </div>
+  )
+}}
+"#
+        )
+    }
 
     const fn framework_from_target(&self, target: FrameworkTarget) -> Framework {
         match target {

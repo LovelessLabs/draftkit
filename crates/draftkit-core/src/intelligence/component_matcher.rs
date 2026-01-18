@@ -84,7 +84,10 @@ impl ComponentMatcher {
     }
 
     /// Load intelligence data directly from a HashMap.
-    pub fn with_intelligence(mut self, intelligence: HashMap<String, ComponentIntelligence>) -> Self {
+    pub fn with_intelligence(
+        mut self,
+        intelligence: HashMap<String, ComponentIntelligence>,
+    ) -> Self {
         self.intelligence = intelligence;
         self
     }
@@ -225,7 +228,11 @@ impl ComponentMatcher {
     ///
     /// Uses co-occurrence patterns from template analysis.
     #[must_use]
-    pub fn recommend_after(&self, component_id: &str, limit: usize) -> Vec<ComponentRecommendation> {
+    pub fn recommend_after(
+        &self,
+        component_id: &str,
+        limit: usize,
+    ) -> Vec<ComponentRecommendation> {
         let Some(intel) = self.intelligence.get(component_id) else {
             return Vec::new();
         };
@@ -255,7 +262,11 @@ impl ComponentMatcher {
     ///
     /// Uses co-occurrence patterns from template analysis.
     #[must_use]
-    pub fn recommend_before(&self, component_id: &str, limit: usize) -> Vec<ComponentRecommendation> {
+    pub fn recommend_before(
+        &self,
+        component_id: &str,
+        limit: usize,
+    ) -> Vec<ComponentRecommendation> {
         let Some(intel) = self.intelligence.get(component_id) else {
             return Vec::new();
         };
@@ -416,7 +427,10 @@ mod tests {
             typography_scale: TypographyScale::Medium,
         };
         let similarity = style_similarity(&style, &style);
-        assert!((similarity - 1.0).abs() < 0.01, "Identical styles should have similarity ~1.0");
+        assert!(
+            (similarity - 1.0).abs() < 0.01,
+            "Identical styles should have similarity ~1.0"
+        );
     }
 
     #[test]
@@ -437,7 +451,10 @@ mod tests {
         };
         let similarity = style_similarity(&style_a, &style_b);
         // Expect low similarity but not 0 due to typography partial match
-        assert!(similarity < 0.3, "Opposite styles should have low similarity, got {similarity}");
+        assert!(
+            similarity < 0.3,
+            "Opposite styles should have low similarity, got {similarity}"
+        );
     }
 
     #[test]
@@ -457,7 +474,10 @@ mod tests {
             typography_scale: TypographyScale::Medium,
         };
         let similarity = style_similarity(&style_a, &style_b);
-        assert!(similarity > 0.8, "Similar styles should have high similarity, got {similarity}");
+        assert!(
+            similarity > 0.8,
+            "Similar styles should have high similarity, got {similarity}"
+        );
     }
 
     #[test]

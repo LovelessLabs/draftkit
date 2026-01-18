@@ -190,7 +190,7 @@ impl PageGenerator {
 
     /// Check if this generator has a fetcher for real component access.
     #[must_use]
-    pub fn has_fetcher(&self) -> bool {
+    pub const fn has_fetcher(&self) -> bool {
         self.fetcher.is_some()
     }
 

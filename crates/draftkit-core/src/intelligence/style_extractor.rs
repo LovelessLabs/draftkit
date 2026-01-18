@@ -20,7 +20,8 @@
 //! let code = r#"<div class="bg-white shadow-lg rounded-xl p-8 text-gray-900">"#;
 //! let profile = StyleExtractor::extract(code);
 //!
-//! assert!(profile.visual_weight > 0.3); // shadow-lg, rounded-xl add weight
+//! // shadow-lg (2.0) + rounded-xl (0.5) = 2.5 / 15.0 ≈ 0.17
+//! assert!(profile.visual_weight > 0.1);
 //! ```
 
 use crate::components::{StyleProfile, TypographyScale};

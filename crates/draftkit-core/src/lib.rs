@@ -15,6 +15,7 @@ pub mod intelligence;
 pub mod manifest;
 pub mod patterns;
 pub mod preset;
+pub mod preview;
 pub mod scaffold;
 
 pub use catalog::Catalog;
@@ -35,6 +36,10 @@ pub use error::{ConfigError, ConfigResult};
 pub use manifest::{
     BuildInfo, Manifest, ManifestCounts, ManifestVersions, TemplateInfo, get_manifest,
     manifest_source,
+};
+pub use preview::{
+    CompositePreview, PreviewCacheStats, PreviewError, PreviewImage, PreviewMode, PreviewSource,
+    RenderedPreview, clear_preview_cache, get_preview_cache_stats, previews_cache_dir,
 };
 pub use scaffold::{
     FrameworkTarget, GenerateError, GenerateOptions, GeneratedPage, PackageManager, PageGenerator,

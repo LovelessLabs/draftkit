@@ -1,5 +1,6 @@
 //! MCP server with tool router for TailwindPlus components.
 
+use base64::Engine;
 use rmcp::ErrorData as McpError;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{
@@ -22,6 +23,7 @@ use draftkit_core::intelligence::{
     ComponentMatcher, PageType, PatternMatcher, RecipeOptions, StylePreference,
 };
 use draftkit_core::patterns::PatternLoader;
+use draftkit_core::preview::{CompositePreview, PreviewMode, PreviewSource};
 use draftkit_core::{ComponentReader, Framework, Mode, cache, docs, elements};
 
 use crate::cli::stderr_spinner;
@@ -160,6 +162,26 @@ pub struct SuggestSectionParams {
 pub struct RecommendTemplatesParams {
     /// Page types needed for the site (e.g., ["landing", "blog", "docs", "pricing"])
     pub page_types: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct PreviewPageParams {
+    /// Preview mode: "composite" (fast, stitches preview images) or "rendered" (accurate, uses Playwright)
+    #[serde(default = "default_preview_mode")]
+    pub mode: Option<String>,
+    /// Component IDs in page order (from top to bottom)
+    pub component_ids: Vec<String>,
+    /// Theme mode: light, dark, or system (default: light)
+    #[serde(default = "default_theme_mode")]
+    pub theme: Option<Mode>,
+}
+
+fn default_preview_mode() -> Option<String> {
+    Some("composite".to_string())
+}
+
+const fn default_theme_mode() -> Option<Mode> {
+    Some(Mode::Light)
 }
 
 // Response types
@@ -873,7 +895,9 @@ impl DraftkitServer {
 14. **list_patterns** - List available page patterns (saas-landing, marketing, etc.)
 15. **get_recipe** - Generate a complete page recipe from a pattern
 16. **suggest_section** - Get suggestions for the next section to add
-17. **preview_recipe** - Get preview URLs for a recipe's sections"#,
+17. **preview_recipe** - Get preview URLs for a recipe's sections
+18. **preview_page** - Generate visual preview image of a page composition
+19. **recommend_components** - Get component recommendations for multi-page sites"#,
             env!("CARGO_PKG_VERSION"),
             compile_time_date(),
             component_count,
@@ -1213,6 +1237,95 @@ impl DraftkitServer {
 
         Ok(CallToolResult::success(vec![Content::text(json)]))
     }
+
+    #[tool(
+        description = "Generate a visual preview of a page composition. Returns a PNG image showing the components stacked vertically. Use 'composite' mode for fast previews (stitches preview images), or 'rendered' mode for pixel-accurate screenshots (requires full page rendering)."
+    )]
+    async fn preview_page(
+        &self,
+        Parameters(params): Parameters<PreviewPageParams>,
+    ) -> Result<CallToolResult, McpError> {
+        // Parse preview mode
+        let mode_str = params.mode.as_deref().unwrap_or("composite");
+        let preview_mode = PreviewMode::parse(mode_str).ok_or_else(|| {
+            McpError::invalid_params(
+                format!("Invalid mode '{mode_str}'. Use 'composite' or 'rendered'."),
+                None,
+            )
+        })?;
+
+        let theme = params.theme.unwrap_or(Mode::Light);
+
+        // Validate we have components
+        if params.component_ids.is_empty() {
+            return Err(McpError::invalid_params(
+                "At least one component_id is required".to_string(),
+                None,
+            ));
+        }
+
+        match preview_mode {
+            PreviewMode::Composite => {
+                self.generate_composite_preview(&params.component_ids, theme)
+                    .await
+            }
+            PreviewMode::Rendered => {
+                // Rendered mode is not yet implemented
+                Err(McpError::internal_error(
+                    "Rendered mode is not yet implemented. Use 'composite' mode.".to_string(),
+                    None,
+                ))
+            }
+        }
+    }
+}
+
+impl DraftkitServer {
+    /// Generate a composite preview by stitching component preview images.
+    async fn generate_composite_preview(
+        &self,
+        component_ids: &[String],
+        theme: Mode,
+    ) -> Result<CallToolResult, McpError> {
+        // Build preview sources from component IDs
+        let mut sources = Vec::with_capacity(component_ids.len());
+
+        for id in component_ids {
+            let record = self
+                .component_reader
+                .find_by_id(Framework::React, id)
+                .ok_or_else(|| {
+                    McpError::resource_not_found(format!("Component not found: {id}"), None)
+                })?;
+
+            let preview_url = record.preview_url(theme).ok_or_else(|| {
+                McpError::invalid_params(
+                    format!("Component '{}' has no preview image for {} mode", id, theme),
+                    None,
+                )
+            })?;
+
+            sources.push(PreviewSource {
+                component_id: id.clone(),
+                preview_url: preview_url.to_string(),
+                name: record.name.clone(),
+            });
+        }
+
+        // Generate composite preview
+        let preview = CompositePreview::new();
+        let image = preview.generate(&sources, theme).await.map_err(|e| {
+            McpError::internal_error(format!("Failed to generate preview: {e}"), None)
+        })?;
+
+        // Return as base64-encoded PNG image
+        let base64 = base64::engine::general_purpose::STANDARD.encode(&image.data);
+
+        Ok(CallToolResult::success(vec![Content::image(
+            base64,
+            "image/png",
+        )]))
+    }
 }
 
 /// Map a page type to the section types typically needed for that page.
@@ -1329,6 +1442,7 @@ Modes: light, dark, system
 - get_recipe: Generate a complete page with ordered sections and component variants
 - suggest_section: Get suggestions for what section to add next
 - preview_recipe: Get preview URLs for a recipe's sections
+- preview_page: Generate visual preview image of a page composition
 
 ## Catalyst UI Kit (27 atomic React components)
 - list_catalyst_components: List all available Catalyst components

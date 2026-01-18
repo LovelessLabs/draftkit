@@ -77,6 +77,7 @@ chrono = "0.4.43"
 playwright-rs = { git = "https://github.com/padamson/playwright-rust", version = "0.8.1" }
 toml = "0.9.11"
 reqwest = { version = "0.13.1", features = ["blocking"] }
+base64 = "0.22.1"
 
 [dev-dependencies]
 assert_cmd = "2.0"

@@ -163,17 +163,15 @@ impl ComponentFetcher {
             .await?;
 
         // Extract XSRF token from cookies
-        if let Some(cookies) = resp.headers().get("set-cookie") {
-            if let Ok(cookie_str) = cookies.to_str() {
-                if let Some(start) = cookie_str.find("XSRF-TOKEN=") {
-                    let token_start = start + 11;
-                    if let Some(end) = cookie_str[token_start..].find(';') {
-                        let token = &cookie_str[token_start..token_start + end];
-                        // URL decode the token
-                        self.xsrf_token =
-                            Some(urlencoding::decode(token).unwrap_or_default().into_owned());
-                    }
-                }
+        if let Some(cookies) = resp.headers().get("set-cookie")
+            && let Ok(cookie_str) = cookies.to_str()
+            && let Some(start) = cookie_str.find("XSRF-TOKEN=")
+        {
+            let token_start = start + 11;
+            if let Some(end) = cookie_str[token_start..].find(';') {
+                let token = &cookie_str[token_start..token_start + end];
+                // URL decode the token
+                self.xsrf_token = Some(urlencoding::decode(token).unwrap_or_default().into_owned());
             }
         }
 
@@ -184,10 +182,10 @@ impl ComponentFetcher {
             if let Some(end) = html[json_start..].find('"') {
                 let escaped = &html[json_start..json_start + end];
                 let unescaped = escaped.replace("&quot;", "\"");
-                if let Ok(page) = serde_json::from_str::<serde_json::Value>(&unescaped) {
-                    if let Some(version) = page.get("version").and_then(|v| v.as_str()) {
-                        self.inertia_version = Some(version.to_string());
-                    }
+                if let Ok(page) = serde_json::from_str::<serde_json::Value>(&unescaped)
+                    && let Some(version) = page.get("version").and_then(|v| v.as_str())
+                {
+                    self.inertia_version = Some(version.to_string());
                 }
             }
         }

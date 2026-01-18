@@ -130,30 +130,30 @@ impl PatternMatcher {
         }
 
         // Suggest based on typical flow (what follows the last section)
-        if let Some(last) = current_sections.last() {
-            if let Some(next_types) = self.typical_next_sections(last) {
-                for next_type in next_types {
-                    // Don't suggest if already present
-                    if current_sections.contains(&next_type) {
-                        continue;
-                    }
+        if let Some(last) = current_sections.last()
+            && let Some(next_types) = self.typical_next_sections(last)
+        {
+            for next_type in next_types {
+                // Don't suggest if already present
+                if current_sections.contains(&next_type) {
+                    continue;
+                }
 
-                    // Find the spec for this section type
-                    if let Some(spec) = pattern
-                        .sections
-                        .iter()
-                        .find(|s| s.section_type == next_type)
-                    {
-                        // Don't duplicate required suggestions
-                        if !suggestions.iter().any(|s| s.section_type == next_type) {
-                            suggestions.push(SectionSuggestion {
-                                section_type: next_type.clone(),
-                                variants: spec.variants.clone(),
-                                reason: format!("Commonly follows {}", last),
-                                priority: 0.7,
-                                required: spec.required,
-                            });
-                        }
+                // Find the spec for this section type
+                if let Some(spec) = pattern
+                    .sections
+                    .iter()
+                    .find(|s| s.section_type == next_type)
+                {
+                    // Don't duplicate required suggestions
+                    if !suggestions.iter().any(|s| s.section_type == next_type) {
+                        suggestions.push(SectionSuggestion {
+                            section_type: next_type.clone(),
+                            variants: spec.variants.clone(),
+                            reason: format!("Commonly follows {}", last),
+                            priority: 0.7,
+                            required: spec.required,
+                        });
                     }
                 }
             }
@@ -233,10 +233,10 @@ impl PatternMatcher {
         opts: &RecipeOptions,
     ) -> &'a VariantSpec {
         // If this section is emphasized, use recommended variant
-        if opts.emphasis.as_ref() == Some(&section.section_type) {
-            if let Some(recommended) = section.variants.iter().find(|v| v.recommended) {
-                return recommended;
-            }
+        if opts.emphasis.as_ref() == Some(&section.section_type)
+            && let Some(recommended) = section.variants.iter().find(|v| v.recommended)
+        {
+            return recommended;
         }
 
         // Style preference affects selection

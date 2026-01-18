@@ -141,15 +141,15 @@ impl StyleOverrides {
     /// Check if a visual weight value passes the constraints.
     #[must_use]
     pub fn check_visual_weight(&self, value: f32) -> bool {
-        if let Some(max) = self.visual_weight_max {
-            if value > max {
-                return false;
-            }
+        if let Some(max) = self.visual_weight_max
+            && value > max
+        {
+            return false;
         }
-        if let Some(min) = self.visual_weight_min {
-            if value < min {
-                return false;
-            }
+        if let Some(min) = self.visual_weight_min
+            && value < min
+        {
+            return false;
         }
         true
     }
@@ -157,15 +157,15 @@ impl StyleOverrides {
     /// Check if a formality value passes the constraints.
     #[must_use]
     pub fn check_formality(&self, value: f32) -> bool {
-        if let Some(max) = self.formality_max {
-            if value > max {
-                return false;
-            }
+        if let Some(max) = self.formality_max
+            && value > max
+        {
+            return false;
         }
-        if let Some(min) = self.formality_min {
-            if value < min {
-                return false;
-            }
+        if let Some(min) = self.formality_min
+            && value < min
+        {
+            return false;
         }
         true
     }
@@ -173,15 +173,15 @@ impl StyleOverrides {
     /// Check if a color intensity value passes the constraints.
     #[must_use]
     pub fn check_color_intensity(&self, value: f32) -> bool {
-        if let Some(max) = self.color_intensity_max {
-            if value > max {
-                return false;
-            }
+        if let Some(max) = self.color_intensity_max
+            && value > max
+        {
+            return false;
         }
-        if let Some(min) = self.color_intensity_min {
-            if value < min {
-                return false;
-            }
+        if let Some(min) = self.color_intensity_min
+            && value < min
+        {
+            return false;
         }
         true
     }
@@ -189,15 +189,15 @@ impl StyleOverrides {
     /// Check if a spacing density value passes the constraints.
     #[must_use]
     pub fn check_spacing_density(&self, value: f32) -> bool {
-        if let Some(max) = self.spacing_density_max {
-            if value > max {
-                return false;
-            }
+        if let Some(max) = self.spacing_density_max
+            && value > max
+        {
+            return false;
         }
-        if let Some(min) = self.spacing_density_min {
-            if value < min {
-                return false;
-            }
+        if let Some(min) = self.spacing_density_min
+            && value < min
+        {
+            return false;
         }
         true
     }
@@ -255,7 +255,7 @@ impl Blacklist {
 
     /// Check if the blacklist has any entries.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.components.is_empty() && self.tags.is_empty() && self.categories.is_empty()
     }
 }
@@ -288,7 +288,7 @@ impl Whitelist {
 
     /// Check if the whitelist has any entries.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.components.is_empty() && self.tags.is_empty()
     }
 }

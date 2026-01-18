@@ -248,16 +248,16 @@ fn detect_tailwind_version(json: &serde_json::Value) -> TailwindVersion {
         .get("devDependencies")
         .or_else(|| json.get("dependencies"));
 
-    if let Some(deps) = deps {
-        if let Some(version) = deps.get("tailwindcss").and_then(|v| v.as_str()) {
-            // Check if version starts with ^4, ~4, 4, etc.
-            let version_clean = version.trim_start_matches(['^', '~', '>', '=', '<', ' ']);
-            if version_clean.starts_with('4') {
-                return TailwindVersion::V4;
-            }
-            if version_clean.starts_with('3') {
-                return TailwindVersion::V3;
-            }
+    if let Some(deps) = deps
+        && let Some(version) = deps.get("tailwindcss").and_then(|v| v.as_str())
+    {
+        // Check if version starts with ^4, ~4, 4, etc.
+        let version_clean = version.trim_start_matches(['^', '~', '>', '=', '<', ' ']);
+        if version_clean.starts_with('4') {
+            return TailwindVersion::V4;
+        }
+        if version_clean.starts_with('3') {
+            return TailwindVersion::V3;
         }
     }
 

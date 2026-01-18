@@ -73,10 +73,10 @@ pub struct ObservabilityGuard {
 
 impl Drop for ObservabilityGuard {
     fn drop(&mut self) {
-        if let Some(provider) = self.tracer_provider.take() {
-            if let Err(err) = provider.shutdown() {
-                eprintln!("Error shutting down tracer provider: {err}");
-            }
+        if let Some(provider) = self.tracer_provider.take()
+            && let Err(err) = provider.shutdown()
+        {
+            eprintln!("Error shutting down tracer provider: {err}");
         }
     }
 }

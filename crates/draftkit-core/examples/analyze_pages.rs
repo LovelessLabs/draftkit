@@ -138,7 +138,7 @@ fn main() {
                 .count();
             let entry = best_for_type
                 .entry(page.page_type)
-                .or_insert((name.clone(), 0));
+                .or_insert_with(|| (name.clone(), 0));
             if count > entry.1 {
                 *entry = (name.clone(), count);
             }

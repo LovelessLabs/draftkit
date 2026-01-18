@@ -1,5 +1,6 @@
 set shell := ["zsh", "-c"]
 set dotenv-load := true
+toolchain := `taplo get -f rust-toolchain.toml toolchain.channel | tr -d '"'`
 
 default:
   @just --list
@@ -8,7 +9,11 @@ fmt:
   cargo fmt --all
 
 clippy:
-  cargo clippy --all-targets --all-features -- -D warnings
+  cargo +{{toolchain}} clippy --all-targets --all-features -- -D warnings
+
+fix:
+  echo "Using toolchain {{toolchain}}"
+  cargo +{{toolchain}} clippy --fix --allow-dirty --allow-staged -- -W clippy::all
 
 # Check dependencies for security advisories and license compliance
 deny:

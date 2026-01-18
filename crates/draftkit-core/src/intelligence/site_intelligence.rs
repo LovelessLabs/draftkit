@@ -106,11 +106,13 @@ impl SiteIntelligence {
                     continue;
                 }
 
-                let entry = best_for_type.entry(page_type).or_insert_with(|| TemplateRanking {
-                    best: analysis.name.clone(),
-                    score: 0,
-                    alternatives: Vec::new(),
-                });
+                let entry = best_for_type
+                    .entry(page_type)
+                    .or_insert_with(|| TemplateRanking {
+                        best: analysis.name.clone(),
+                        score: 0,
+                        alternatives: Vec::new(),
+                    });
 
                 if count > entry.score {
                     // This template is better
@@ -234,7 +236,11 @@ impl SiteIntelligence {
     }
 
     /// Generate style bridging notes for a set of templates.
-    fn generate_style_notes(&self, templates: &HashSet<String>, page_types: &[PageType]) -> Vec<String> {
+    fn generate_style_notes(
+        &self,
+        templates: &HashSet<String>,
+        page_types: &[PageType],
+    ) -> Vec<String> {
         let mut notes = Vec::new();
 
         if templates.len() > 1 {
@@ -374,9 +380,10 @@ mod tests {
 
         assert_eq!(rec.template_count, 1);
         assert!(!rec.is_multi_template());
-        assert!(rec
-            .style_notes
-            .iter()
-            .any(|n| n.contains("Single template")));
+        assert!(
+            rec.style_notes
+                .iter()
+                .any(|n| n.contains("Single template"))
+        );
     }
 }

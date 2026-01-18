@@ -30,7 +30,11 @@ fn main() {
 
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.is_dir() && !path.file_name().is_some_and(|n| n.to_string_lossy().starts_with('.')) {
+        if path.is_dir()
+            && !path
+                .file_name()
+                .is_some_and(|n| n.to_string_lossy().starts_with('.'))
+        {
             let utf8_path = camino::Utf8PathBuf::try_from(path).expect("Invalid UTF-8 path");
             println!("Analyzing: {}", utf8_path.file_name().unwrap_or("unknown"));
 

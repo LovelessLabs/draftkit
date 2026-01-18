@@ -337,10 +337,8 @@ impl PageAnalyzer {
     pub fn new() -> Self {
         Self {
             analyses: HashMap::new(),
-            import_regex: Regex::new(
-                r#"import\s+\{?\s*([^}]+?)\s*\}?\s+from\s+['"]([^'"]+)['"]"#,
-            )
-            .ok(),
+            import_regex: Regex::new(r#"import\s+\{?\s*([^}]+?)\s*\}?\s+from\s+['"]([^'"]+)['"]"#)
+                .ok(),
             component_regex: Regex::new(r"<([A-Z][a-zA-Z0-9]*)").ok(),
             // Match: export { Layout as default } from '@/components/Layout'
             mdx_layout_regex: Regex::new(
@@ -471,10 +469,7 @@ impl PageAnalyzer {
 
     /// Find the Next.js app directory.
     fn find_app_dir(&self, source_root: &Utf8Path) -> Option<Utf8PathBuf> {
-        let candidates = [
-            source_root.join("src/app"),
-            source_root.join("app"),
-        ];
+        let candidates = [source_root.join("src/app"), source_root.join("app")];
 
         candidates.into_iter().find(|p| p.exists())
     }
@@ -508,10 +503,7 @@ impl PageAnalyzer {
                 let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
                 // Check for page files (TSX/JSX/JS)
-                if file_name == "page.tsx"
-                    || file_name == "page.jsx"
-                    || file_name == "page.js"
-                {
+                if file_name == "page.tsx" || file_name == "page.jsx" || file_name == "page.js" {
                     let utf8_path =
                         Utf8PathBuf::try_from(path).map_err(|_| PageAnalysisError::InvalidPath)?;
 
@@ -600,7 +592,10 @@ impl PageAnalyzer {
                     let component_name = import.split(" as ").next().unwrap_or(import).trim();
 
                     if component_name.is_empty()
-                        || !component_name.chars().next().is_some_and(|c| c.is_uppercase())
+                        || !component_name
+                            .chars()
+                            .next()
+                            .is_some_and(|c| c.is_uppercase())
                     {
                         continue;
                     }
@@ -741,7 +736,10 @@ impl PageAnalyzer {
                     let component_name = import.split(" as ").next().unwrap_or(import).trim();
 
                     if component_name.is_empty()
-                        || !component_name.chars().next().is_some_and(|c| c.is_uppercase())
+                        || !component_name
+                            .chars()
+                            .next()
+                            .is_some_and(|c| c.is_uppercase())
                     {
                         continue;
                     }
@@ -944,7 +942,7 @@ impl PageAnalyzer {
                     if seen_components.insert(id.clone()) {
                         component_usages.push(ComponentUsage {
                             id: id.clone(),
-                            import_path: None,          // Markdoc components are registered globally
+                            import_path: None, // Markdoc components are registered globally
                             is_inline: false,
                             style: None,
                         });
@@ -954,10 +952,9 @@ impl PageAnalyzer {
                             .split('-')
                             .map(|w| {
                                 let mut c = w.chars();
-                                c.next()
-                                    .map_or_else(String::new, |first| {
-                                        first.to_uppercase().chain(c).collect()
-                                    })
+                                c.next().map_or_else(String::new, |first| {
+                                    first.to_uppercase().chain(c).collect()
+                                })
                             })
                             .collect::<Vec<_>>()
                             .join("");
@@ -1053,11 +1050,7 @@ impl PageAnalyzer {
     fn derive_component_id(&self, name: &str, import_path: &str) -> String {
         // For section imports, use the file name
         if import_path.contains("/sections/") {
-            import_path
-                .rsplit('/')
-                .next()
-                .unwrap_or(name)
-                .to_string()
+            import_path.rsplit('/').next().unwrap_or(name).to_string()
         } else {
             // Convert PascalCase to kebab-case
             let mut id = String::new();
@@ -1138,9 +1131,7 @@ impl PageAnalyzer {
         // Find shared components (Header, Footer, Nav, etc.)
         let mut shared_components = Vec::new();
 
-        let shared_patterns = [
-            "Header", "Footer", "Nav", "Navbar", "Navigation", "Sidebar",
-        ];
+        let shared_patterns = ["Header", "Footer", "Nav", "Navbar", "Navigation", "Sidebar"];
 
         if let Some(ref component_re) = self.component_regex {
             for cap in component_re.captures_iter(&code) {
@@ -1239,10 +1230,9 @@ impl PageAnalyzer {
                 s.split('-')
                     .map(|w| {
                         let mut c = w.chars();
-                        c.next()
-                            .map_or_else(String::new, |first| {
-                                first.to_uppercase().chain(c).collect()
-                            })
+                        c.next().map_or_else(String::new, |first| {
+                            first.to_uppercase().chain(c).collect()
+                        })
                     })
                     .collect::<Vec<_>>()
                     .join(" ")
@@ -1388,7 +1378,10 @@ mod tests {
     fn page_type_strips_route_groups() {
         // /(main) group should be stripped, resulting in "/" = home
         assert_eq!(PageType::from_route("/(main)"), PageType::Home);
-        assert_eq!(PageType::from_route("/(centered)/resources"), PageType::Resources);
+        assert_eq!(
+            PageType::from_route("/(centered)/resources"),
+            PageType::Resources
+        );
         assert_eq!(PageType::from_route("/(sidebar)/blog"), PageType::Blog);
     }
 
@@ -1402,10 +1395,10 @@ mod tests {
     fn normalize_route_strips_groups() {
         assert_eq!(PageType::normalize_route("/(main)"), "/");
         assert_eq!(PageType::normalize_route("/(auth)/login"), "/login");
-        assert_eq!(PageType::normalize_route("/(centered)/resources"), "/resources");
         assert_eq!(
-            PageType::normalize_route("/(main)/(nested)/page"),
-            "/page"
+            PageType::normalize_route("/(centered)/resources"),
+            "/resources"
         );
+        assert_eq!(PageType::normalize_route("/(main)/(nested)/page"), "/page");
     }
 }

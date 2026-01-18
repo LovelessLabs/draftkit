@@ -669,13 +669,26 @@ for kit in "${KITS[@]}"; do
       }' \
       > "$KITS_DIR/$kit.json" 2>/dev/null || echo '{}' > "$KITS_DIR/$kit.json"
 
+    # Extract the template kit for intelligence analysis
+    unzip -q -o "$KITS_DIR/$kit.zip" -d "$KITS_DIR/.${kit}-extract"
+    # Find the extracted directory (usually named after the kit)
+    EXTRACTED=$(find "$KITS_DIR/.${kit}-extract" -maxdepth 1 -type d ! -name ".${kit}-extract" | head -1)
+    if [[ -d "$EXTRACTED" ]]; then
+      rm -rf "$KITS_DIR/$kit"
+      mv "$EXTRACTED" "$KITS_DIR/$kit"
+      rm -rf "$KITS_DIR/.${kit}-extract"
+      tsx_count=$(find "$KITS_DIR/$kit" -name "*.tsx" 2>/dev/null | wc -l | tr -d ' ')
+    else
+      tsx_count=0
+    fi
+
     # Show dates (highlight if they differ)
     if [[ -n "$changelog_date" && -n "$file_mtime" && "$changelog_date" != "$file_mtime" ]]; then
-      echo "${OK} $kit: $size (changelog: $changelog_date, files: $file_mtime)"
+      echo "${OK} $kit: $size, $tsx_count tsx (changelog: $changelog_date, files: $file_mtime)"
     elif [[ -n "$changelog_date" ]]; then
-      echo "${OK} $kit: $size (updated: $changelog_date)"
+      echo "${OK} $kit: $size, $tsx_count tsx (updated: $changelog_date)"
     else
-      echo "${OK} $kit: $size"
+      echo "${OK} $kit: $size, $tsx_count tsx"
     fi
     mark_step "8-kit-$kit"
   else
